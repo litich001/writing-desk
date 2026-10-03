@@ -753,7 +753,7 @@ details.acc > .in{padding:var(--s3) var(--s4);border-top:1px solid var(--line-3)
   max-width:1600px;
   padding:var(--s5) var(--s4) 80px;
 }
-.ship-left{
+.ship-col{
   position:sticky;top:var(--s4);
   display:flex;flex-direction:column;gap:var(--s5);
   max-height:calc(100vh - 60px);overflow-y:auto;overscroll-behavior:contain;
@@ -799,9 +799,9 @@ details.acc > .in{padding:var(--s3) var(--s4);border-top:1px solid var(--line-3)
 .paper-shell .preview-body{padding:32px 30px 72px;max-height:none}
 .paper-shell .preview-body img{border-radius:3px}
 
-.ship-left .field{margin-top:var(--s2)}
-.ship-left .field label{font-size:var(--fs-meta);font-weight:500;color:var(--ink-3)}
-.ship-left textarea{width:100%}
+.ship-col .field{margin-top:var(--s2)}
+.ship-col .field label{font-size:var(--fs-meta);font-weight:500;color:var(--ink-3)}
+.ship-col textarea{width:100%}
 
 /* ---------- 排版微调面板（P0-4：字号颜色可调）---------- */
 .tune-grid{display:flex;flex-direction:column;gap:var(--s3)}
@@ -1108,7 +1108,7 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
   .opts .opt.grow{grid-column:1/-1}
   /* 发布页：主区装不下 300 工具栏 + 375 预览就堆叠 */
   .ship-wrap{grid-template-columns:1fr}
-  .ship-left{position:static;max-height:none}
+  .ship-col{position:static;max-height:none}
   .theme-list{display:grid;grid-template-columns:1fr 1fr}
   .grid-2,.grid-ship,.grid-side{grid-template-columns:1fr}
   .rail{position:static}
@@ -1178,29 +1178,8 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
    380px 足够读一段排好版的正文（公众号正文宽 375）。 */
 .write-grid{grid-template-columns:minmax(0,1fr) minmax(340px,380px)}
 .write-side.write-preview{padding:0;overflow:hidden;background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-m);display:flex;flex-direction:column}
-.wv-bar{display:flex;align-items:baseline;gap:10px;padding:11px var(--s4);border-bottom:1px solid var(--line-2);background:var(--surface);flex:0 0 auto}
-.wv-h{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:var(--ink-2)}
-.wv-n{margin-left:auto;font-size:11px;color:var(--ink-4);font-variant-numeric:tabular-nums}
-.wv-scroll{flex:1;min-height:0;overflow-y:auto;padding:var(--s4)}
-.wv-paper{background:#fff;border:1px solid var(--line-3);border-radius:var(--r-s);padding:var(--s5) var(--s4);box-shadow:var(--sh-1)}
 
-.wv-t{font:700 20px/1.4 var(--serif);color:var(--ink);margin:0 0 18px;padding-bottom:12px;border-bottom:2px solid var(--fc,#111)}
-.wv-t-empty{color:var(--ink-4);font-weight:400;border-bottom-style:dashed;font-size:16px}
-.wv-c{font:400 16px/2 var(--font);color:var(--ink-2);word-break:break-word}
-.wv-c h1{font:700 21px/1.45 var(--serif);margin:0 0 18px}
-.wv-c h2{font:700 19px/1.5 var(--serif);margin:30px 0 14px;padding-left:11px;border-left:3px solid var(--brand)}
-.wv-c h3{font:700 17px/1.5 var(--serif);margin:24px 0 10px}
-.wv-c p{margin:0 0 10px}
-.wv-c strong{color:var(--brand);font-weight:700}
-.wv-c blockquote{margin:0 0 18px;padding:14px 16px;background:#f7f5ef;border-left:3px solid var(--line-2);color:var(--ink-3);font-size:15px}
-.wv-c img{max-width:100%;display:block;margin:0 auto 8px;border-radius:3px}
-.wv-c figcaption{font-size:12px;color:var(--ink-4);text-align:center;margin:0 0 16px}
-.wv-c table{border-collapse:collapse;width:100%;font-size:13px;margin:0 0 16px}
-.wv-c th,.wv-c td{border:1px solid var(--line-3);padding:6px 9px;text-align:left}
-.wv-c code{background:#f4f2ec;padding:1px 4px;border-radius:3px;font-size:13.5px}
-.wv-c hr{margin:24px auto;width:60px;height:1px;background:var(--line-2);border:0}
 
-.wv-empty,.wv-loading{padding:40px 10px;text-align:center;color:var(--ink-4);font-size:13px;line-height:1.9}
 
 /* 窄屏时预览挪到正文下面，别挤成一条 */
 
@@ -1405,30 +1384,11 @@ body{
   0%,80%,100%{opacity:.25}
   40%{opacity:1}
 }
-.wv-loading::after,.empty .ico::after{
-  content:'';display:inline-block;margin-left:2px;
-}
-.wv-loading,.empty .ico{
-  position:relative;
-}
-.wv-loading i,.empty .ico i{
-  display:inline-block;width:4px;height:4px;margin-left:3px;
-  border-radius:50%;background:currentColor;vertical-align:middle;
-  animation:breathe 1.2s var(--ease) infinite;
-}
-.wv-loading i:nth-child(2),.empty .ico i:nth-child(2){animation-delay:.18s}
-.wv-loading i:nth-child(3),.empty .ico i:nth-child(3){animation-delay:.36s}
 
 /* 扫描线：给「正在处理」的容器一个极轻的扫过 */
 @keyframes sweep{
   from{transform:translateX(-100%)}
   to{transform:translateX(200%)}
-}
-.wv-loading,.editor-shell.busy{position:relative;overflow:hidden}
-.wv-loading::before{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(90deg,transparent,rgba(176,58,46,.07),transparent);
-  animation:sweep 1.6s var(--ease) infinite;
 }
 
 /* ── Toast ──
@@ -1481,10 +1441,6 @@ details.acc[open] > summary{color:var(--ink)}
 /* ── 数字用等宽 ──
    自检面板、字数统计这些数字每 4 秒变一次，
    不等宽的话位数一变整行就左右跳。 */
-.wv-n,.editor-stats span,.self-chk-hd,.stat .v,.peek-cnt,.w-readout,#w-readout{
-  font-variant-numeric:tabular-nums;
-  font-feature-settings:"tnum" 1;
-}
 
 /* ── 滚动条 ──
    默认滚动条在深色块上很扎眼，而且宽度随系统变化影响布局。
@@ -1564,9 +1520,6 @@ details.acc[open] > summary{color:var(--ink)}
   .chk.no .mk,.chk.no .dt{color:var(--danger)}
 
   /* 图片是白底截图的话，暗色页面上会有刺眼的白框 —— 加个内阴影压一下 */
-  .wv-paper img,.ship-body img{
-    box-shadow:0 0 0 1px rgba(255,255,255,.06);
-  }
 
   /* 滚动条在暗底上要用更深的灰 */
   *::-webkit-scrollbar-thumb{background:#3a3d44;background-clip:content-box}
@@ -1628,7 +1581,6 @@ body{
   overflow-x:hidden;
 }
 /* 但代码和长串要能断行，不能一刀切隐藏掉 */
-.wv-c,.editor,pre,code,.pe{overflow-wrap:anywhere;word-break:break-word}
 
 /* ════════════════════════════════════════════════════════════
    第五层 · 补齐缺失的交互反馈
@@ -1906,7 +1858,6 @@ button.bd:hover{transform:translateY(-1px)}
 
 /* ── 右侧预览：同样占满高度 ── */
 .write-side.write-preview{height:100%;min-height:0}
-.wv-scroll{flex:1 1 auto;min-height:0;overflow-y:auto}
 
 /* ── 交付区：默认折叠 ── */
 .deliver-acc{margin-top:var(--s3);flex:0 0 auto}
@@ -1940,7 +1891,6 @@ button.bd:hover{transform:translateY(-1px)}
   .write-main,.write-side{height:auto}
   .editor-shell{overflow:visible}
   .editor{min-height:50vh;height:auto}
-  .wv-scroll{max-height:60vh}
 }
 @media (max-width:720px){
   .brief-row{flex-wrap:wrap}
@@ -1955,4 +1905,647 @@ button.bd:hover{transform:translateY(-1px)}
    踩过一次：规则完全正确，但次要指标一直显示。 */
 @media (max-width:1400px){
   .mt-sec{display:none}
+}
+
+/* ════════════════════════════════════════════════════════════
+   第七层 · 苹果高透玻璃
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 环境层 ──
+   玻璃要「有东西可折」，背后就得有色彩起伏。
+   四团大尺寸径向渐变，位置错开、色相分散，
+   滚动时它们相对固定（fixed），所以内容滑过去时折射会跟着变。 */
+body::before{
+  content:'';
+  position:fixed;
+  inset:-20%;
+  z-index:-2;
+  pointer-events:none;
+  background:
+    radial-gradient(42% 38% at 12% 8%,  rgba(255,86,120,.30),  transparent 70%),
+    radial-gradient(38% 42% at 88% 12%, rgba(86,132,255,.28),  transparent 72%),
+    radial-gradient(46% 40% at 78% 88%, rgba(120,84,255,.24),  transparent 72%),
+    radial-gradient(40% 36% at 8% 82%,  rgba(46,214,178,.22),  transparent 70%);
+  filter:saturate(140%);
+  animation:glassDrift 42s var(--ease) infinite alternate;
+}
+/* 光斑极缓慢漂移。动得太多会让人觉得界面在晃，分散注意力。 */
+@keyframes glassDrift{
+  0%  { transform:translate3d(0,0,0) scale(1) }
+  50% { transform:translate3d(1.5%,-1.2%,0) scale(1.03) }
+  100%{ transform:translate3d(-1.2%,1.4%,0) scale(1.02) }
+}
+
+/* 细网格。给玻璃一个可参照的「刻度」，
+   没有它大面积玻璃会显得脏（摩尔纹 + 压缩噪点）。 */
+body::after{
+  content:'';
+  position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.22) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.22) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse 120% 90% at 50% 40%,#000 20%,transparent 78%);
+  -webkit-mask-image:radial-gradient(ellipse 120% 90% at 50% 40%,#000 20%,transparent 78%);
+  opacity:.5;
+}
+
+/* ── 玻璃材质 ──
+   三层缺一不可：
+     ① 半透明底色  —— 没有它 blur 了也还是透明的，看不清层次
+     ② backdrop-filter —— 真正把背后揉进模糊
+     ③ saturate —— 把 blur 掉的颜色找回来。这一项最容易被漏，
+                      漏了就是「毛玻璃」，不是「高透玻璃」。
+   --glass-blur 单独给令牌：Safari 对多层 backdrop-filter 的支持
+   与 Chrome 有差异，分开写才能各自调。 */
+:root{
+  --glass-blur:saturate(180%) blur(22px);
+  --glass-blur-strong:saturate(200%) blur(34px);
+  --glass-blur-thin:saturate(160%) blur(12px);
+
+  /* 玻璃底色的透明度。0.72 左右最平衡：
+     再高就透了（文字叠文字），再低就变回实心卡片。 */
+  --glass-tint:rgba(255,255,255,.62);
+  --glass-tint-strong:rgba(255,255,255,.76);
+  --glass-tint-thin:rgba(255,255,255,.42);
+
+  /* 折射边：顶部亮、底部暗、中间半透明白 */
+  --glass-edge-top:inset 0 1px 0 rgba(255,255,255,.85);
+  --glass-edge-bottom:inset 0 -1px 0 rgba(255,255,255,.30);
+  --glass-edge:inset 0 0 0 1px rgba(255,255,255,.42);
+  --glass-shadow:0 8px 32px rgba(31,38,86,.14),0 2px 8px rgba(31,38,86,.08);
+  --glass-shadow-lg:0 24px 64px rgba(31,38,86,.20),0 8px 20px rgba(31,38,86,.10);
+  --glass-shadow-inset:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(255,255,255,.28);
+}
+
+/* 一个可复用的玻璃材质类 ——
+   组件类名变了也不怕，加这个类就有玻璃效果。 */
+.glass{
+  background:var(--glass-tint);
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge),var(--glass-shadow);
+}
+
+/* ── 暗色下的玻璃 ──
+   暗色玻璃和亮色玻璃不是同一套参数：
+   · 底色要比亮色更透（0.38 而非 0.62）—— 亮色玻璃靠白底撑，
+     暗色玻璃靠背后的光斑撑，底色太实光就穿不过来
+   · 折射边反过来：暗色下顶部是暗的、底部是亮的（光源在上方） */
+@media (prefers-color-scheme:dark){
+  :root{
+    --glass-tint:rgba(30,32,42,.55);
+    --glass-tint-strong:rgba(30,32,42,.72);
+    --glass-tint-thin:rgba(30,32,42,.36);
+    --glass-edge-top:inset 0 1px 0 rgba(255,255,255,.16);
+    --glass-edge-bottom:inset 0 -1px 0 rgba(255,255,255,.05);
+    --glass-edge:inset 0 0 0 1px rgba(255,255,255,.10);
+    --glass-shadow:0 8px 32px rgba(0,0,0,.42);
+    --glass-shadow-lg:0 24px 64px rgba(0,0,0,.55);
+    --glass-shadow-inset:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -1px 0 rgba(255,255,255,.04);
+  }
+  body::before{
+    background:
+      radial-gradient(42% 38% at 12% 8%,  rgba(255,86,120,.26),  transparent 70%),
+      radial-gradient(38% 42% at 88% 12%, rgba(86,132,255,.30),  transparent 72%),
+      radial-gradient(46% 40% at 78% 88%, rgba(120,84,255,.26),  transparent 72%),
+      radial-gradient(40% 36% at 8% 82%,  rgba(46,214,178,.20),  transparent 70%);
+  }
+  body::after{
+    background-image:
+      linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   第七层之二 · 组件玻璃化
+
+   不改前面的规则（改一处会连锁一大片，而且那些规则里
+   混着历史修改，动了容易踩到别的坑），
+   在末尾用同名选择器覆盖 —— 源顺序在后就生效。
+
+   分三档玻璃，按「这块内容有多重要」分：
+     strong 主面板（侧栏、主编辑区、预览窗）
+     normal 常规卡片
+     thin    次要元素（chip、徽章、输入框边框）
+   全用同一档会让界面像一张糊在一起的玻璃板，层次就没了。
+*/
+
+/* ── 侧栏 ──
+   侧栏是导航，最该有玻璃感 —— 它浮在环境上，
+   光斑从背后透过来时能看见边缘的折射。 */
+.side{
+  background:var(--glass-tint-strong);
+  -webkit-backdrop-filter:var(--glass-blur-strong);
+  backdrop-filter:var(--glass-blur-strong);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge),var(--glass-shadow);
+  border-right:1px solid rgba(255,255,255,.30);
+}
+@media (prefers-color-scheme:dark){
+  .side{border-right-color:rgba(255,255,255,.08)}
+}
+
+/* ── 主区容器 ──
+   主区不整块做玻璃，只让「浮起的面板」有玻璃。
+   整块做玻璃的话，正文文字就贴在玻璃上，长时间读会晕。 */
+.page > *{position:relative}
+
+/* ── 卡片 ──
+   卡片是玻璃风最好的载体：它本来就是「浮在上面的东西」。 */
+.card,
+.hot-item,
+.item,
+.lib-item,
+.tune-row,
+.theme-row{
+  background:var(--glass-tint);
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge);
+  border-color:rgba(255,255,255,.34);
+}
+@media (prefers-color-scheme:dark){
+  .card,.hot-item,.item,.lib-item,.tune-row,.theme-row{
+    border-color:rgba(255,255,255,.08);
+  }
+}
+/* 卡片 hover：玻璃加厚。真实玻璃被按下去时会「变厚」，
+   透射率下降、色泽变浓 —— 这就是为什么要提高不透明度而不是只加阴影。 */
+.card:hover,.hot-item:hover,.item:hover{
+  background:var(--glass-tint-strong);
+  -webkit-backdrop-filter:var(--glass-blur-strong);
+  backdrop-filter:var(--glass-blur-strong);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge),var(--glass-shadow);
+}
+
+/* ── 输入框 ──
+   输入框用最薄的一档。写稿时要盯着输入框，
+   太厚的玻璃会让打字的人感觉「字浮在糖纸上」。 */
+.input,
+.editor,
+textarea,
+select{
+  background:var(--glass-tint-thin);
+  -webkit-backdrop-filter:var(--glass-blur-thin);
+  backdrop-filter:var(--glass-blur-thin);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge);
+  border-color:rgba(255,255,255,.40);
+}
+@media (prefers-color-scheme:dark){
+  .input,.editor,textarea,select{border-color:rgba(255,255,255,.09)}
+}
+.input:focus,.editor:focus,textarea:focus,select:focus{
+  background:var(--glass-tint);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge),0 0 0 3px rgba(176,58,46,.14);
+}
+
+/* ── 按钮 ──
+   主按钮用不透明（朱红实底），次要按钮用玻璃。
+   理由：主按钮是「行动点」，玻璃按钮做主按钮会显得轻飘、
+        不知道能不能点。次要按钮本来就是备选，玻璃正合适。 */
+.btn.ghost,.btn:not(.brand){
+  background:var(--glass-tint);
+  -webkit-backdrop-filter:var(--glass-blur-thin);
+  backdrop-filter:var(--glass-blur-thin);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge);
+  border-color:rgba(255,255,255,.36);
+}
+.btn.ghost:hover,.btn:not(.brand):hover{
+  background:var(--glass-tint-strong);
+}
+@media (prefers-color-scheme:dark){
+  .btn.ghost,.btn:not(.brand){border-color:rgba(255,255,255,.09)}
+}
+
+/* ── 胶囊元素 ──
+   chip / 徽章 / seg 控件 —— 用最薄那档，它们小，玻璃感要克制。 */
+.chip,.badge,.seg,.seg-b,.side-tabs,.tabs{
+  background:var(--glass-tint-thin);
+  -webkit-backdrop-filter:var(--glass-blur-thin);
+  backdrop-filter:var(--glass-blur-thin);
+}
+
+/* ── 悬浮元素 ──
+   下拉、模态、toast —— 悬浮最久的玻璃该最厚，层次感最强。 */
+.modal,.drawer,#toast,.pop,.preview-pop{
+  background:var(--glass-tint-strong);
+  -webkit-backdrop-filter:var(--glass-blur-strong);
+  backdrop-filter:var(--glass-blur-strong);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge),var(--glass-shadow-lg);
+}
+
+/* ── 顶栏 / 粘性栏 ──
+   半透明 + 模糊，这样滚动时内容从下面「流过去」而不是撞墙。 */
+.hot-bar-sticky,.sticky-l,.sticky,.lib-h.sticky{
+  background:var(--glass-tint);
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  box-shadow:var(--glass-shadow-inset),0 1px 0 rgba(255,255,255,.30);
+}
+
+/* ── 分隔线 ──
+   玻璃界面里分隔线不该是实色实线，应该是半透明白 ——
+   它是「玻璃的接缝」，不是墙。 */
+.page,.card,.item,.hot-item,.side,.main{
+  --line:rgba(120,126,150,.18);
+  --line-2:rgba(120,126,150,.13);
+  --line-3:rgba(120,126,150,.08);
+}
+@media (prefers-color-scheme:dark){
+  .page,.card,.item,.hot-item,.side,.main{
+    --line:rgba(255,255,255,.10);
+    --line-2:rgba(255,255,255,.07);
+    --line-3:rgba(255,255,255,.04);
+  }
+}
+
+/* ── 玻璃界面的阴影体系替换 ──
+   原来 --sh-* 是给「实心卡片」设计的（实心才需要投影分层）。
+   玻璃本身已经能通过背景模糊分层，再叠一层投影会显得脏。
+   所以把令牌指向玻璃阴影。 */
+:root{
+  --sh-1:var(--glass-shadow-inset);
+  --sh-2:var(--glass-shadow-inset),var(--glass-edge),var(--glass-shadow);
+  --sh-3:var(--glass-shadow-inset),var(--glass-edge),var(--glass-shadow-lg);
+}
+
+/* ── 降级 ──
+   不支持 backdrop-filter 的浏览器（老 Safari、部分安卓 WebView）：
+   直接用高不透明度实色，否则半透明叠在环境上会看不清文字。
+   这一条不是可选项 —— 文字看不清等于界面不可用。 */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root{
+    --glass-tint:rgba(252,251,248,.96);
+    --glass-tint-strong:rgba(252,251,248,.98);
+    --glass-tint-thin:rgba(248,246,241,.95);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --glass-tint:rgba(26,28,34,.97);
+      --glass-tint-strong:rgba(26,28,34,.98);
+      --glass-tint-thin:rgba(32,34,41,.96);
+    }
+  }
+  body::before{opacity:.28}
+}
+
+/* ── 打印 ──
+   玻璃在打印时会变成一团灰（backdrop-filter 不参与打印）。
+   强制实色，不然打出来是废纸。 */
+@media print{
+  body::before,body::after{display:none}
+  .card,.hot-item,.item,.input,.editor,.textarea,.btn,.side{
+    background:#fff !important;
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+    box-shadow:none !important;
+    border-color:#ccc !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   第七层之三 · ★ 玻璃风的致命坑：body 背景会盖住环境层
+
+   实测踩到：body::before 的径向渐变在 z-index:-2，
+   而 body 自己有 background:#14151a（不透明）。
+   body 的背景画在 ::before 之后 —— 于是环境层被完全盖住，
+   玻璃背后什么都没有，「高透」退化成普通半透明。
+
+   而且这个坑很隐蔽：CSS 写对了、backdrop-filter 也生效了、
+   半透明度也对了，只是「背后没东西折」，肉眼看就是「不通透」。
+
+   修法：色底给 html，body 自己透明。
+     html  = 最底层，负责铺底色
+     body::before = 环境光斑（z:-2）
+     body::after  = 细网格（z:-1）
+     body         = 完全透明，只放内容
+*/
+html{
+  background:var(--bg);
+  /* html 是根元素，body::before 的 z-index:-2 会被它挡住，
+     所以底色必须交给 html 自己。 */
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, rgba(255,255,255,.10), transparent 60%);
+}
+body{
+  background:transparent !important;
+  background-image:none !important;
+}
+
+/* 某些浏览器里 html/body 形成层叠上下文时，
+   伪元素的负 z-index 会被困在 body 内。
+   兜底：给 #app 建立独立的层叠上下文，让伪元素能透出来。 */
+#app{position:relative;z-index:0}
+
+/* Safari 的 backdrop-filter 有个老问题：
+   元素的祖先如果有 transform/filter/overflow:hidden，
+   模糊会把祖先「一起糊掉」，边界看起来是错的。
+   侧栏和主区都显式取消这些属性。 */
+.side,.main,.page,.write-main,.write-side,.editor-shell{
+  transform:none;
+  filter:none;
+  -webkit-filter:none;
+}
+
+/* ════════════════════════════════════════════════════════════
+   第七层之四 · 成稿页右侧改成「备选标题 + 一键改写」
+
+   用户原话：
+     「右边预览的话，那和发布界面的预览有什么区别？没有区别呀。
+       那你应该把右侧那个备选标题给我放在右边，
+       就是你直接一次性给出标题，而不是让我再一次给。
+       还有那个一键改写，都应该放在它的右侧，不要有那个预览了。」
+
+   说得对 —— 同一个功能放两遍，右边这个位置就浪费了。
+*/
+.write-side.write-aside{
+  gap:0;
+  padding:0;
+  background:transparent;
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+  box-shadow:none;
+  border:none;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+
+/* 每个分区之间用发丝缝，不用卡片边框 ——
+   这一列是「三件工具」，不是三个独立模块。 */
+.aside-sec{
+  padding:var(--s4);
+  border-bottom:1px solid var(--line-3);
+}
+.aside-sec:last-child{border-bottom:none}
+
+.as-h{
+  display:flex;align-items:baseline;gap:8px;
+  margin-bottom:var(--s3);
+}
+.as-t{
+  font:700 12px/1.4 var(--font);
+  letter-spacing:.08em;
+  color:var(--ink-2);
+}
+.as-n{
+  margin-left:auto;
+  font:400 10.5px/1.4 var(--font);
+  color:var(--ink-4);
+  font-variant-numeric:tabular-nums;
+}
+
+/* ── 备选标题 ──
+   用户要的是「一次性给出」，所以列表要一眼扫得完。
+   序号 + 全文一行，hover 时整行可点。 */
+.tp-list-aside{
+  display:flex;flex-direction:column;gap:3px;
+  max-height:340px;overflow-y:auto;
+}
+.tp-list-aside .tp{
+  display:flex;align-items:flex-start;gap:8px;
+  width:100%;text-align:left;
+  padding:8px 10px;
+  border:1px solid transparent;
+  border-radius:var(--r-s);
+  background:var(--glass-tint-thin);
+  -webkit-backdrop-filter:var(--glass-blur-thin);
+  backdrop-filter:var(--glass-blur-thin);
+  font:500 13px/1.6 var(--font);
+  color:var(--ink-2);
+  cursor:pointer;
+  transition:all var(--dur-fast) var(--ease);
+}
+.tp-list-aside .tp:hover{
+  background:var(--glass-tint-strong);
+  transform:translateX(2px);
+}
+.tp-list-aside .tp.on{
+  background:var(--brand-soft);
+  border-color:color-mix(in srgb,var(--brand) 40%,transparent);
+  color:var(--ink);
+  font-weight:700;
+}
+.tp-i{
+  flex:0 0 auto;
+  width:17px;height:17px;
+  display:grid;place-items:center;
+  border-radius:50%;
+  background:var(--surface-3);
+  color:var(--ink-4);
+  font:700 9.5px/1 var(--font);
+  font-variant-numeric:tabular-nums;
+}
+.tp.on .tp-i{background:var(--brand);color:#fff}
+.tp-t{flex:1;min-width:0}
+
+.as-paste-btn{margin-top:var(--s2)}
+.as-hint{
+  margin-top:var(--s2);
+  font:400 10.5px/1.65 var(--font);
+  color:var(--ink-4);
+}
+
+/* ── 改写要求 ── */
+.as-req{
+  width:100%;
+  resize:vertical;
+  min-height:76px;
+  margin-bottom:var(--s2);
+}
+
+/* ── 自检摘要 ──
+   只放结论，5 项一行一条。右侧这块要在「一屏内」用完。 */
+.achk-sum{
+  padding:5px 10px;
+  border-radius:var(--r-s);
+  font:700 11.5px/1.6 var(--font);
+  margin-bottom:var(--s2);
+  text-align:center;
+}
+.achk-sum.good{background:var(--ok-bg);color:var(--ok)}
+.achk-sum.bad{background:var(--warn-bg);color:var(--warn)}
+
+.achk-list{display:flex;flex-direction:column;gap:1px}
+.achk{
+  display:flex;align-items:baseline;gap:7px;
+  padding:4px 8px;
+  border-radius:var(--r-s);
+  font:400 11.5px/1.6 var(--font);
+  transition:background-color var(--dur-base) var(--ease);
+}
+.achk .mk{flex:0 0 auto;width:12px;font-weight:700;text-align:center}
+.achk.ok .mk{color:var(--ok)}
+.achk.no{background:var(--danger-bg)}
+.achk.no .mk{color:var(--danger)}
+.achk .lb{flex:1;min-width:0;color:var(--ink-2)}
+.achk.no .lb{color:var(--ink);font-weight:600}
+.achk .dt{
+  flex:0 0 auto;
+  font-variant-numeric:tabular-nums;
+  color:var(--ink-4);
+}
+.achk.no .dt{color:var(--danger)}
+
+.as-empty{
+  padding:var(--s4) var(--s3);
+  text-align:center;
+  font:400 11.5px/1.8 var(--font);
+  color:var(--ink-4);
+}
+
+/* ── 交付区从三块变两块 ── */
+.deliver-grid-2{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+
+/* ````````````````````````````````````````````````````````````````
+   第七层之五 · ★ 特异度陷阱：玻璃规则被 textarea.input 压掉
+
+   实测：输入框写好了玻璃，但 getComputedStyle 的 background
+   还是不透明的 var(--surface)。原因不是源顺序，是特异度 ——
+   旧规则 `.input, select, textarea.input` 里逗号后的
+   `textarea.input` 特异度 (0,1,1)，高于我新规则里的 `.input` (0,1,0)。
+   写在后面也没用。
+
+   修法：把复合选择器补进来，特异度拉平。
+        圆角顺便修回来 —— 旧规则把它清成 0 了，
+        玻璃没有圆角就看不出「浮在背景上」。
+   ```````````````````````````````````````````````````````````````` */
+.input,
+.editor,
+textarea,
+select,
+textarea.input,
+.input.textarea,
+.input.input{
+  background:var(--glass-tint-thin);
+  -webkit-backdrop-filter:var(--glass-blur-thin);
+  backdrop-filter:var(--glass-blur-thin);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge);
+  border-color:rgba(255,255,255,.40);
+  /* 旧规则写死 border-radius:0，玻璃要圆角才看得出厚度 */
+  border-radius:var(--r-m);
+}
+@media (prefers-color-scheme:dark){
+  .input,.editor,textarea,select,
+  textarea.input,.input.textarea,.input.input{
+    border-color:rgba(255,255,255,.09);
+  }
+}
+.input:focus,.editor:focus,textarea:focus,select:focus,
+textarea.input:focus,.input.input:focus{
+  background:var(--glass-tint);
+  box-shadow:var(--glass-shadow-inset),var(--glass-edge),0 0 0 3px rgba(176,58,46,.14);
+}
+
+/* 单行输入框的高度不能被 min-height 撑开 ——
+   玻璃层给了上下 inset 阴影，高度差 1px 就会露出两条亮边。 */
+.input:not(textarea){height:38px}
+
+/* ````````````````````````````````````````````````````````````````
+   第七层之六 · 发布页三栏并排
+```````````````````````````````````````````````````````````````` */
+.ship-wrap{
+  display:grid;
+  /* 三栏宽度不均是有原因的：
+     微调栏内容最少（7 个控件）但控件本身窄，
+     排版栏内容最多（11 套主题 + 摘要 + 发布按钮）需要高；
+     预览栏随视口伸缩。三栏都等分会把预览挤到放不下 760 纸宽。 */
+  grid-template-columns:296px 300px minmax(0,1fr);
+  grid-template-areas:
+    "ctl tune main"
+    "ctl tune main";
+  column-gap:var(--s5);
+  align-items:start;
+  max-width:1680px;
+  padding:var(--s5) var(--s4) 80px;
+}
+.ship-col{
+  position:sticky;top:var(--s4);
+  display:flex;flex-direction:column;gap:var(--s5);
+  max-height:calc(100vh - 60px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding-right:4px;
+}
+.ship-ctl{grid-area:ctl}
+.ship-tune{grid-area:tune}
+.ship-main{grid-area:main}
+
+/* 两栏底部对齐到视口底，粘顶才有意义。
+   原来只有一栏粘顶，第二栏加进来后必须各自独立滚动 ——
+   共用一个滚动容器的话，微调滚走了预览也看不见。 */
+.ship-col::-webkit-scrollbar{width:6px}
+.ship-col::-webkit-scrollbar-thumb{
+  background:rgba(140,146,170,.30);border-radius:3px
+}
+.ship-col::-webkit-scrollbar-thumb:hover{background:rgba(140,146,170,.50)}
+
+/* 11 套主题在 296px 一栏里竖排要 490px —— 占掉大半个视口。
+   改成两列网格：每套只留色块 + 名字，tag 省略号。
+   一屏能看完所有排版，而不是滚三次。 */
+.ship-ctl .theme-list{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:3px
+}
+.ship-ctl .theme-row{padding:7px 8px}
+.ship-ctl .theme-row .sw{width:14px;height:14px}
+
+/* 微调栏：7 个控件挤在 300px，标签与控件要分开两行才不互相挤。 */
+.ship-tune .tune-row{
+  flex-direction:column;
+  align-items:stretch;
+  gap:5px;
+}
+.ship-tune .tune-row label{font-size:var(--fs-meta);color:var(--ink-3)}
+.ship-tune .tune-btns{justify-content:flex-start;flex-wrap:wrap}
+.ship-tune .tune-val{
+  position:absolute;top:8px;right:8px;
+  font-variant-numeric:tabular-nums;
+}
+.ship-tune .tune-row{position:relative;padding-right:56px}
+
+
+
+/* ── 1320~900：三栏一路并排 ──
+   这档可用宽度 = 视口 − 72 导航 − 72 边距 ≈ 视口 − 144。
+   900 时可用 756，放 224+232+375+32=863 放不下 → 900 是堆叠阈值；
+   1100 时可用 956，装得下。中间几档靠下面这条 minmax 兜底，
+   装不下时预览栏自己缩，纸宽被 measurePaper 夹住并显示真实值。 */
+@media (max-width:1320px){
+  .ship-wrap{
+    grid-template-columns:228px 236px minmax(0,1fr);
+    column-gap:var(--s4);
+  }
+  /* 窄栏里主题列表压成两列：每套只留色块 + 名字，tag 省略 */
+  .ship-ctl .theme-list{grid-template-columns:1fr 1fr}
+  .ship-ctl .theme-row .tn em{display:none}
+  .ship-ctl .theme-row .sw{width:12px;height:12px;border-radius:3px}
+  /* 微调单列，但控件行紧凑 */
+  .ship-tune .tune-grid{
+    display:flex;flex-direction:column;gap:6px
+  }
+  .ship-tune .tune-row{padding:6px 8px;flex-direction:row;align-items:center;gap:8px}
+  .ship-tune .tune-row label{flex:0 0 42px}
+  .ship-tune .tune-btns{flex:1;min-width:0;flex-wrap:wrap;gap:2px}
+  .ship-tune .tune-val{display:none}
+  .ship-tune .tune-row:has(.tune-colors){flex-direction:column;align-items:stretch}
+  .ship-tune .tune-row:has(.tune-colors) label{flex:none}
+}
+
+/* ── 900 以下才真的放不下 ──
+   900px 可用 756，224+232+375+32=863 超出 → 整页堆叠。
+   原来的阈值是 1000，把 1000 这个最常见的窗口宽度误判成窄屏。 */
+@media (max-width:900px){
+  .ship-wrap{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"ctl" "tune" "main";
+  }
+  .ship-col{position:static;max-height:none;overflow-y:visible}
+  .ship-tune .tune-row{flex-direction:column;align-items:stretch}
+  .ship-tune .tune-row label{flex:none}
+  .ship-tune .tune-val{display:block;position:static}
+}
+@media (max-width:560px){
+  .ship-ctl .theme-list{grid-template-columns:1fr}
 }

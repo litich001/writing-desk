@@ -286,13 +286,14 @@ ok('渲染表正好 4 页', /\{ hot: renderHot, idea: renderIdea, write: renderW
      用户原话「成稿页面右侧应该预览它的那个文章」——
      右侧让给文章预览，工具面板挪到下面，三块并排。 */
 ok('★ 成稿页侧栏不再是 tab 切换', !/sideTab/.test(js))
-ok('★ 交付区是横排三块（自检/标题/改写）',
-  /class="deliver-grid"/.test(js) && /class="dc dc-chk"/.test(js) &&
-  /class="dc dc-title"/.test(js) && /class="dc dc-fix"/.test(js))
+/* 交付区从三块变两块：改写已移到右侧（用户要求），
+   剩下的「标题」那块只在需要手工粘贴时才用到。 */
+ok('★ 交付区是横排两块（自检 / 标题）',
+  /class="deliver-grid deliver-grid-2"/.test(js) && /class="dc dc-chk"/.test(js) &&
+  /class="dc dc-title"/.test(js) && !/dc dc-fix/.test(js))
 ok('★ 交付区在正文主栏内（不是侧栏）',
-  /* 用 includes + indexOf，不用正则：正则里写 </div> 会提前闭合字面量。 */
   js.includes('<div id="ver-cmp"></div>') &&
-  js.indexOf('renderDeliverPane(a, facts)}') < js.indexOf('<aside class="write-side write-preview">'))
+  js.indexOf('renderDeliverPane(a, facts)}') < js.indexOf('class="write-side write-aside"'))
 ok('★ 素材面板已删（无 mat pane / addMat / insertMat / delMat）',
   !/sideTab === 'mat'/.test(js) && !/async addMat/.test(js) &&
   !/async insertMat/.test(js) && !/async delMat/.test(js) && !/mat-in/.test(js))
@@ -390,41 +391,6 @@ ok('★ write-grid 只有一套桌面比例（旧的 3fr/5fr 已清）',
    只能等排到发布页才知道，而发布页看的是排版后的效果，不是文章本身。
 
    这是我连着三轮都没看界面、只改规则和判据漏掉的。 */
-sec('9c7a 右侧文章预览')
-ok('★ 右侧容器 class 是 write-preview',
-  js.includes('<aside class="write-side write-preview">'))
-ok('★ 右侧有独立的滚动区与纸面容器',
-  js.includes('class="wv-scroll"') && js.includes('class="wv-paper"') && js.includes('id="wv-body"'))
-ok('★ 标题在预览里是 h1',
-  js.includes("'<h1 class=\"wv-t\">'"))
-ok('★ 有 draftHtml 与 refreshWritePreview',
-  /function draftHtml/.test(js) && /function refreshWritePreview/.test(js))
-ok('★ 预览复用服务端排版内核（前端不再写一份正则 markdown）',
-  /api\('\/preview'/.test(js.slice(js.indexOf('function refreshWritePreview'))) &&
-  !/function draftHtml[\s\S]{0,600}replace\(\/\*\*/.test(js))
-/* wvTimer / wvSeq 必须声明在 renderWrite 之前 ——
-   否则脚本末尾那次初始渲染撞上 let 的暂时性死区，整页白屏。
-   这个坑本项目在 peekAbort / peekHtml 上各栽过一次。 */
-ok('★ wvTimer/wvSeq 声明在 renderWrite 之前',
-  js.indexOf('let wvTimer') > 0 && js.indexOf('let wvTimer') < js.indexOf('function renderWrite'))
-ok('★ refreshWritePreview 的调用在 renderWrite 函数体内',
-  js.indexOf('refreshWritePreview()\n}') > 0 &&
-  js.indexOf('refreshWritePreview()\n}') < js.indexOf('function renderSelfCheck'))
-/* 预览要跟着正文走，但不能每敲一个字就往返一次 */
-ok('★ 预览有防抖', /let wvTimer = null/.test(js) && /\}, 300\)/.test(js))
-ok('★ 预览有请求序号（慢的旧结果不能盖掉新的）',
-  /const seq = \+\+wvSeq/.test(js) && /if \(seq !== wvSeq\) return/.test(js))
-ok('★ 标题变化也重排预览',
-  /t\.id === 'etitle'\)[\s\S]{0,120}refreshWritePreview\(\)/.test(js))
-ok('★ 预览有 CSS 样式',
-  /\.wv-paper/.test(css) && /\.wv-c/.test(css) && /\.wv-t/.test(css))
-ok('𦂅馈字号 比排版稿小一档（预览是读，排版是发）',
-  /\.wv-c\{font:400 16px/.test(css))
-ok('★ 窄屏才堆叠，断点是 1024（用户桌面 1280~1920 不该被挤成上下）',
-  /@media \(max-width:1024px\)/.test(css) && !/@media \(max-width:1180px\)\s*\n?\s*\.write-grid/.test(css))
-ok('小按钮不小于 30px', /\.btn\.xs\{[^}]*height:30px/.test(css))
-ok('发布页主题行够高可点', /\.theme-row\{[^}]*padding:8px 10px/.test(css))
-
 /* ════════ 9c5. 成稿页：单一可编辑文框（阅读/编辑分离已按要求删除）═══════ */
 sec('9c5 成稿页')
 ok('★ 阅读/编辑分离已删除（用户反馈「搞得有点复杂」）',
@@ -654,6 +620,179 @@ sec('9c6t 手册与代码一致')
   ok('★ 手册里的路径指向当前目录（不是旧位置）',
     /E:\\Codex\\Opencode\\写作台/.test(manual) &&
     !/Get-ChildItem "E:\\文档/.test(manual))
+/* ════════ 9ca. 渲染期状态必须在任何 render 之前声明 ════════
+   暂时性死区（TDZ）本项目已栽四次：
+     wvTimer / peekAbort / peekHtml / newTitlesPending
+   症状一模一样：页面初始化时 go() 就调了 render，
+   而状态声明在文件后面 —— 报「Cannot read properties of null」，
+   整个页面白屏或渲染失败。
+
+   根治不是「每次都记得前移」，而是「渲染期要用的状态集中声明在顶部」。
+   下面这条断言扫的是：所有在 render 函数里被读到的模块级 let，
+   声明位置必须早于 renderWrite。
+*/
+/* ════════ 9cd. 发布页三栏并排 ════════
+   用户原话：「发布页布局不合理，修改功能改成左右并排改，不要在最下边。」
+
+   实测出的真病根（getComputedStyle）：
+     ship-wrap 的 grid-template-columns 算出来是单列，
+     左栏 scrollHeight 1632px，微调 top=661、发布 top=1523。
+   两个原因叠加，只改一个都不够：
+     ① 断点写成 max-width:1024px —— 1000px 是最常见窗口宽度，
+        等于日常不可用
+     ② 一栏 260px 竖塞 5 节 11 套主题共 1632px，断点改了还得滚
+   所以是重新分栏：排版｜微调｜预览，三者同一屏。
+*/
+sec('9cd 发布页三栏并排')
+ok('★ 三栏容器（不是一栏塞全部）',
+  /grid-template-areas:/.test(css) && /"ctl tune main"/.test(css))
+ok('★ 三栏各有独立滚动（微调滚走时预览还在）',
+  /\.ship-col\{[\s\S]{0,300}?overflow-y:auto/.test(css))
+ok('★ ★ 堆叠阈值不是 1000（把最常见窗口宽度误判成窄屏）',
+  !/max-width:1000px\}[\s\S]{0,200}?ship-wrap/.test(css))
+ok('★ 中档也保持三栏（900~1320 之间不降级）',
+  /@media \(max-width:1320px\)\{[\s\S]{0,400}?grid-template-columns:228px 236px/.test(css))
+ok('★ 微调栏紧贴预览左侧（grid-area 显式声明，不靠 DOM 顺序）',
+  /\.ship-tune\{grid-area:tune\}/.test(css) && /\.ship-main\{grid-area:main\}/.test(css))
+ok('★ 11 套主题在窄栏压两列（一屏看完，不是滚三次）',
+  /\.ship-ctl \.theme-list\{grid-template-columns:1fr 1fr\}/.test(css))
+ok('★ renderShip 里微调独立成 aside，不是塞在排版栏下面',
+  /<aside class="ship-col ship-tune">/.test(js) &&
+  js.indexOf('ship-col ship-tune') < js.indexOf('class="ship-main"'))
+ok('★ 旧 .ship-left 类名已全部改名（不留两套）',
+  !/ship-left/.test(js) && !/\.ship-left/.test(css))
+ok('★ 未闭合的 div 已修（预览宽度那节原来开了没关，撑坏整页栅格）',
+  (js.match(/<div\b/g) || []).length - (js.match(/<\/div>/g) || []).length === 0)
+
+/* ════════ 9ce. 特异度陷阱 ════════
+   逗号分隔的选择器列表里，每个逗号后的选择器单独算特异度。
+   旧规则 `.input, select, textarea.input` 里 textarea.input 是 (0,1,1)，
+   压过后写的 `.input, .editor, textarea, select` 里的 .input (0,1,0)。
+   源码顺序再对也没用 —— 实测输入框 glass 写了却仍是实心 var(--surface)。
+*/
+sec('9ce CSS 特异度陷阱')
+ok('★ 输入框玻璃规则含复合选择器 textarea.input（拉平特异度）',
+  /textarea\.input,[\s\S]{0,120}?--glass-tint-thin/.test(css))
+/* border-radius 距离选择器列表末尾约 300 字符，
+     断言的窗口给窄了会误报。放大窗口即可。 */
+ok('★ 输入框圆角没被 border-radius:0 吃掉（玻璃没圆角看不出厚度）',
+  /textarea\.input,[\s\S]{0,900}?border-radius:var\(--r-m\)/.test(css))
+ok('★ focus 态也覆盖复合选择器（不然聚焦时退回实心）',
+  /textarea\.input:focus/.test(css))
+
+/* ════════ 9cf. null 数组当空数组用 ════════
+   newTitlesPending 初始化是 null（不是 []），
+   模板里直接 .length 炸「Cannot read properties of null」。
+   上一轮把声明从散落位置提到顶部集中声明区时把 && 那一半弄丢了。
+*/
+sec('9cf null 安全')
+/* newTitlesPending.length 出现在三元守卫内部是安全的
+     （`${newTitlesPending ? ... newTitlesPending.length ...}` 守卫在前）。
+     真正的不变量是：每一次裸取之前都判过空。 */
+ok('★ 模板里取 newTitlesPending.length 之前都判过空',
+  (function(){
+    var bad = []
+    var re = /newTitlesPending\.length/g, m
+    while ((m = re.exec(js))) {
+      var back = js.slice(Math.max(0, m.index - 120), m.index)
+      if (!/newTitlesPending\s*(&&|\?|\|\|)/.test(back)) bad.push(m.index)
+    }
+    return bad.length === 0
+  })())
+ok('★ 最常见的坑：三元守卫里用 (x || []).length 而不是裸 .length',
+  /\$\{\(newTitlesPending \|\| \[\]\)\.length/.test(js))
+ok('★ 渲染期状态声明在文件最顶部（< 800 行，远早于 renderWrite）',
+  js.indexOf('let newTitlesPending') > 0 && js.indexOf('let newTitlesPending') < 800)
+ok('★ 三个渲染期状态都在同一处声明（titlePoolRaw / fixReqRaw / newTitlesPending）',
+  (function(){
+    var a = js.indexOf('let titlePoolRaw'), b = js.indexOf('let fixReqRaw'),
+        c = js.indexOf('let newTitlesPending')
+    return a > 0 && b > 0 && c > 0 && Math.max(a,b,c) - Math.min(a,b,c) < 200
+  })())
+ok('★ 没有重复的 action 定义（同名 key 静默覆盖，不报错但代码骗人）',
+  (function(){
+    var m = js.match(/^  (takeNewTitles|focusTitleIn|useTitle|taskTitle)\(\)/gm) || []
+    return new Set(m).size === m.length
+  })())
+
+sec('9ca 暂时性死区')
+{
+  const rw = js.indexOf('function renderWrite')
+  const before = js.slice(0, rw)
+  /* 模块级 let 声明 */
+  const decls = [...js.matchAll(/^let ([A-Za-z_$][\w$]*)\s*=/gm)].map(m => m[1])
+  /* render 函数体内被读到的 */
+  const rwBody = js.slice(rw, js.indexOf('function renderHot'))
+  const used = decls.filter(n => new RegExp(`\\b${n}\\b`).test(rwBody))
+  const late = used.filter(n => !new RegExp(`^let ${n}\\s*=`, `m`).test(before))
+  ok('★ renderWrite 用到的状态全部在它之前声明（暂时性死区）',
+    late.length === 0,
+    '声明在后面：' + late.join(', '))
+  /* 顶部的集中声明区 */
+  ok('★ 有「渲染期状态」集中声明区', /渲染期状态/.test(js))
+}
+
+/* ════════ 9cb. 成稿页右侧是工具不是预览 ════════
+   用户原话：「右边预览的话，那和发布界面的预览有什么区别？没有区别呀。
+     那你应该把右侧那个备选标题给我放在右边……还有那个一键改写，都应该放在它的右侧，不要有那个预览了。」
+*/
+sec('9cb 右侧备选标题与改写')
+ok('★ 右侧不再是文章预览（会和发布页重复）',
+  !/write-side write-preview/.test(js) && !/id="wv-body"/.test(js))
+ok('★ 右侧有备选标题区', /class="aside-sec"/.test(js) && /备选标题/.test(js))
+ok('★ 备选标题是可点的一键替换', /tp-list-aside/.test(js) && /data-act="useTitle"/.test(js))
+ok('★ 备选标题带序号（一眼扫得完）', /class="tp-i"/.test(js))
+ok('★ 没有标题时给明确出路（复制要求 + 手工入口）',
+  /还没有备选标题/.test(js) && /data-act="taskTitle"/.test(js) && /data-act="focusTitleIn"/.test(js))
+ok('★ AI 交的新标题不覆盖用户手工粘的（有换用按钮）',
+  /newTitlesPending/.test(js) && /data-act="takeNewTitles"/.test(js))
+ok('★ 一键改写在右侧', /id="as-fixreq"/.test(js))
+ok('★ 改写框 id 唯一（没有第二个 #fixreq 造成读空）',
+  !/id="fixreq"/.test(js) && !/\$\('#fixreq'\)/.test(js))
+ok('★ 改写读模块级变量而不是 DOM（两处输入不会打架）',
+  /const f = fixReqRaw\.trim\(\)/.test(js))
+ok('★ 右侧自检只放结论（5 项，不是 12 项明细）',
+  /function renderAsideCheck/.test(js) && /achk-list/.test(js))
+ok('★ 交付区从三块变两块（改写已移走，不重复）',
+  /deliver-grid-2/.test(js) && !/dc dc-fix/.test(js))
+
+/* ════════ 9cc. 苹果高透玻璃 ════════
+   三层缺一不可：环境（背后有东西可折）、材质（半透+模糊+饱和补偿）、
+   折射边（厚度感）。最容易被漏的是第三项 saturate 和 body 背景透明化。
+*/
+sec('9cc 玻璃材质')
+ok('★ 有环境层（径向渐变光斑，玻璃背后要有东西可折）',
+  /body::before\{[\s\S]{0,400}?radial-gradient/.test(css))
+ok('★ 有细网格层（没有它大面积玻璃会显脏）',
+  /body::after\{[\s\S]{0,400}?linear-gradient/.test(css))
+ok('★ ★ body 背景透明（不透明会盖住 z:-2 的环境层 —— 玻璃变普通半透明）',
+  /body\{[\s\S]{0,200}?background:transparent/.test(css))
+ok('★ 底色交给 html（root 承担底色，body 只放内容）',
+  /html\{[\s\S]{0,200}?background:var\(--bg\)/.test(css))
+ok('★ ★ 模糊必须叠 saturate（漏了就是毛玻璃，不是高透玻璃）',
+  /--glass-blur:saturate\(180%\) blur\(22px\)/.test(css))
+ok('★ 有三档玻璃（strong/normal/thin，全一个档会糊成一片）',
+  /--glass-tint-strong/.test(css) && /--glass-tint:/.test(css) && /--glass-tint-thin/.test(css))
+ok('★ 有折射边（顶部亮/底部暗，玻璃的厚度全在边上）',
+  /--glass-shadow-inset/.test(css) && /inset 0 1px 0 rgba\(255,255,255/.test(css))
+ok('★ 组件用了 backdrop-filter（不只是定义令牌）',
+  (css.match(/backdrop-filter:var\(--glass-blur/g) || []).length >= 6)
+ok('★ 阴影令牌指向玻璃（实心阴影配玻璃会显脏）',
+  /--sh-2:var\(--glass-shadow-inset\)/.test(css))
+ok('★ 暗色下玻璃重新调参（底色更透、折射边反过来）',
+  /@media \(prefers-color-scheme:dark\)\{[\s\S]{0,6000}?--glass-tint:rgba\(30,32,42,\.55\)/.test(css))
+ok('★ 不支持 backdrop-filter 时降级为实色（半透明叠环境会看不清字）',
+  /@supports not \(\(backdrop-filter/.test(css))
+ok('★ 打印时强制实色（backdrop-filter 不参与打印）',
+  /@media print\{[\s\S]{0,600}?backdrop-filter:none/.test(css))
+ok('★ 输入框用最薄档（写稿要盯着输入框，太厚会晕）',
+  /\.input,[\s\S]{0,300}?\.editor[\s\S]{0,300}?var\(--glass-tint-thin\)/.test(css))
+/* 主按钮必须保持实底朱红。玻璃按钮当主按钮会显轻飘，
+     用户不知道能不能点。原来的断言查 :not(.brand) 写法，
+     但那只说明「哪些被排除了」，没有直接验证主按钮本身。 */
+ok('★ 主按钮保持实底朱红（玻璃主按钮显轻飘，不知道能不能点）',
+  /\.btn\.brand\{[^}]*background:var\(--brand\)/.test(css) &&
+  !/\.btn\.brand\{[^}]*backdrop-filter/.test(css))
 
 /* ════════ 9c9. 成稿页首屏优先 + 概要条 ════════
    用户原话：「成稿页面，布局十分不合理，主要功能要一屏就看到。

@@ -12,10 +12,15 @@ let bodyDirty = true
 let shipOn = false
 let shipCache = ''
 let shipTimer = null
-/* 成稿页文章预览的防抖计时与请求序号（必须声明在 renderWrite 之前，
-   否则脚本末尾那次初始渲染会撞上 let 的暂时性死区，整页白屏）。 */
-let wvTimer = null
-let wvSeq = 0
+/* ── 渲染期状态 ──
+   ★ 这些必须在任何 render 函数之前声明完。
+   页面初始化时 go() 就会调 render，声明在后面的会撞暂时性死区，
+   报「Cannot read properties of null」。本项目已栽四次
+   （wvTimer / peekAbort / peekHtml / newTitlesPending）。 */
+let titlePoolRaw = ""
+let fixReqRaw = ""
+let newTitlesPending = null
+
 
 
 const $ = s => document.querySelector(s)
@@ -379,12 +384,12 @@ const Actions = {
   },
 
   async fix() {
-    const f = $('#fixreq').value.trim()
-    if (!f) { toast('先说要改什么', 'warn'); $('#fixreq').focus(); return }
+    const f = fixReqRaw.trim()
+    if (!f) { toast('先说要改什么', 'warn'); const el = $('#as-fixreq'); if (el) el.focus(); return }
     // 改稿是迭代的：同一个标题下可以连着提多条不同的改稿要求，不去重
     try { await save.flush?.(); await api('/task', { type:'rewrite', requirement: `${f}\n\n【原文】见 data/body.md，保留所有 ![图注](文件名) 图片引用。`, ref: S.project.title, force: true }) }
     catch (e) { toast('提交失败：' + e.message, 'err'); return }
-    $('#fixreq').value = ''
+    Actions.keepFixReq('')
     toast('已提交。回对话里跟我说一声')
     await poll(false)
   },
@@ -461,6 +466,32 @@ const Actions = {
     Actions.genTask('title', 'task-title')
   },
 
+  /* 点右侧「我自己有标题」：把焦点送到交付区里的标题粘贴框。
+     右侧是主入口，交付区那一份是备用。 */
+  /* AI 交了新一批标题，但用户自己粘过一批挡住了。
+     存起来给一个「换用 AI 这批」的按钮 ——
+     不能悄悄丢掉（用户不知道错过了），也不该硬抢（那是用户的东西）。 */
+  takeNewTitles() {
+    if (!newTitlesPending || !newTitlesPending.length) return
+    titlePool = parseTitlePool(newTitlesPending.join('\n'))
+    titlePoolRaw = newTitlesPending.join('\n')
+    newTitlesPending = null
+    renderWrite()
+    toast('已换成 AI 交的这批标题', 'ok')
+  },
+  focusTitleIn() {
+    const el = $('#title-in')
+    if (!el) {
+      const acc = $('#deliver-acc')
+      if (acc) acc.open = true
+      toast('已展开交付区，点上面的框粘贴标题', 'warn')
+      return
+    }
+    el.scrollIntoView({ block:'center', behavior:'smooth' })
+    el.focus()
+  },
+
+
   taskAbs() {
     if (!String(S.body || '').trim()) return toast('正文是空的，先把稿子写完', 'warn')
     Actions.genTask('abs', 'task-abs')
@@ -531,14 +562,6 @@ const Actions = {
      不用再手动去标题栏里改一遍。 */
   /* 用户自己粘过一批标题时，AI 新交的那批不覆盖、而是存在这里，
      给一个「换用 AI 这批」的按钮 —— 不能悄悄丢掉，也不该硬抢。 */
-  takeNewTitles() {
-    if (!newTitlesPending || !newTitlesPending.length) return
-    titlePool = parseTitlePool(newTitlesPending.join('\n'))
-    titlePoolRaw = newTitlesPending.join('\n')
-    newTitlesPending = null
-    renderWrite()
-    toast('已换成 AI 交的这批标题', 'ok')
-  },
 
   useTitle(i) {
     const t = titlePool[Number(i)]
@@ -1273,18 +1296,54 @@ function renderWrite() {
 ${renderDeliverPane(a, facts)}
       </details>
     </div>
-      <aside class="write-side write-preview">
-        <div class="wv-bar">
-          <span class="wv-h">文章预览</span>
-          <span class="wv-n" id="wv-chars">${chars} 字</span>
+    <!-- 右侧：备选标题 + 一键改写
+         原来这里是文章预览，但发布页也有文章预览 —— 同一个功能放两遍，
+         这个位置就浪费了。改成写稿时真正需要的两件工具。 -->
+    <aside class="write-side write-aside">
+
+      <!-- 备选标题：AI 交稿时写进 data/titles.json，这里自动收下，
+           不用用户再复制粘贴一次。没有的话给一条明确的出路。 -->
+      <section class="aside-sec">
+        <div class="as-h">
+          <span class="as-t">备选标题</span>
+          <span class="as-n" id="as-title-n"></span>
         </div>
-        <div class="wv-scroll">
-          <div class="wv-paper" id="wv-body">
-            ${S.project.title ? '<h1 class="wv-t">' + esc(S.project.title) + '</h1>' : '<h1 class="wv-t wv-t-empty">（还没起标题）</h1>'}
-            <div class="wv-c">${draftHtml(b)}</div>
-          </div>
+        ${titlePool.length ? `<div class="tp-list tp-list-aside">
+          ${titlePool.map((t, i) => `<button class="tp ${t === ((S.project || {}).title || '') ? 'on' : ''}" data-act="useTitle" data-arg="${i}">
+            <span class="tp-i">${i + 1}</span>
+            <span class="tp-t">${esc(t)}</span>
+          </button>`).join('')}
+        </div>`
+        : `<div class="as-empty">
+            还没有备选标题。
+            <button class="btn ghost sm block" data-act="taskTitle" style="margin-top:8px">复制「起标题」的要求</button>
+            <div class="as-hint">AI 交稿时把标题写进 data/titles.json，这里会自动收下</div>
+            ${(newTitlesPending || []).length ? `<div class="note warn" style="margin-top:8px">
+              AI 又交了 ${newTitlesPending.length} 个标题，你自己粘的那批没被覆盖。
+              <button class="pref-btn" data-act="takeNewTitles">换用 AI 这批</button>
+            </div>` : ''}
+          </div>`}
+        <button class="btn ghost sm block as-paste-btn" data-act="focusTitleIn">
+          ${titlePoolRaw && titlePoolRaw.trim() ? '编辑我粘的标题' : '我自己有标题'}
+        </button>
+      </section>
+
+      <!-- 一键改写：复制「要求 + 原文」出去，粘回 AI 对话窗口改 -->
+      <section class="aside-sec">
+        <div class="as-h">
+          <span class="as-t">一键改写</span>
+          <span class="as-n">不满意就让它重写</span>
         </div>
-      </aside>
+        <textarea class="input as-req" id="as-fixreq" rows="4"
+          placeholder="例：第二段太软，换成具体数字&#10;结尾不要升华&#10;开头别铺垫，直接进场景">${esc(fixReqRaw || '')}</textarea>
+        <button class="btn brand block" data-act="fix">复制「按要求改写」的要求</button>
+        <div class="as-hint">复制完回到 AI 对话窗口粘贴，改好的全文再放回正文框</div>
+      </section>
+
+      <!-- 自检摘要：只放结论，明细去交付区看 -->
+      <section class="aside-sec aside-chk">
+        ${renderAsideCheck()}</section>
+    </aside>
     </div>
   </div>`
   /* 成稿页只有一个可编辑的 textarea。
@@ -1294,7 +1353,6 @@ ${renderDeliverPane(a, facts)}
      右侧的文章预览。调用必须放在函数体内 ——
      之前插到了收尾的 } 外面，变成顶层语句，
      只有脚本加载时跑一次，之后每次进来都是空的「正在排版…」。 */
-  refreshWritePreview()
 }
 
 /* ══════════════ 交付面板 ══════════════
@@ -1578,6 +1636,31 @@ function renderBriefMetrics(chars, heads, imgs, bank, usedN, facts, un, unHi) {
 
   return m.join('')
 }
+/* ---------- 右侧：自检摘要 ----------
+   只放结论，不放 12 项明细 —— 明细在下面的交付区。
+   右边这块要在「一屏内」用完，所以每项必须一行说完。 */
+function renderAsideCheck() {
+  const c = selfCheck()
+  if (c.empty) return '<div class="as-empty">正文还是空的，写完自动检查</div>'
+
+  const k = Math.max(1, c.wc / 100)
+  const rows = []
+  const line = (ok, label, detail) =>
+    rows.push(`<div class="achk ${ok ? 'ok' : 'no'}"><span class="mk">${ok ? '✓' : '!'}</span>` +
+      `<span class="lb">${esc(label)}</span><span class="dt">${esc(String(detail))}</span></div>`)
+
+  const hi = c.hits.filter(h => h.lv === 'hi')
+  line(!hi.length, 'AI 味', hi.length ? hi.length + ' 处' : c.ai + ' 分')
+  line(c.titleOk.has, '标题', !c.titleOk.has ? '未填' : '配套 ' + c.titleOk.cover + '%')
+  line(c.quote / k <= 3, '双引号', (c.quote / k).toFixed(1) + '/千字')
+  line(c.imgs > 0, '配图', c.imgs + ' 张')
+  line(c.bold / k >= 5, '加粗', (c.bold / k).toFixed(1) + '/千字')
+
+  const bad = rows.filter(r => r.indexOf('class="achk no"') >= 0).length
+  return `<div class="achk-sum ${bad ? 'bad' : 'good'}">${bad ? bad + ' 项要改' : '全部通过'}</div>` +
+    '<div class="achk-list">' + rows.join('') + '</div>'
+}
+
 function renderDeliverPane(a, facts) {
   const body = String(S.body || '')
   const c = selfCheck()
@@ -1589,7 +1672,7 @@ function renderDeliverPane(a, facts) {
       <span class="dh-t">交付</span>
       <span class="dh-n">自检 · 标题 · 改写</span>
     </div>
-    <div class="deliver-grid">
+    <div class="deliver-grid deliver-grid-2">
     <div class="dc dc-chk">
 
     <div class="side-h">自检<span>正文一改就自动重跑</span></div>
@@ -1641,12 +1724,7 @@ function renderDeliverPane(a, facts) {
       </div>` : ''}
 
     </div>
-    <div class="dc dc-fix">
-    <div class="side-h">一键改写<span>不满意就让它重写</span></div>
-    <textarea class="input" id="fixreq" rows="3"
-      placeholder="例：第二段太软，换成具体数字&#10;结尾不要升华&#10;开头别铺垫，直接进场景">${esc(fixReqRaw || '')}</textarea>
-    <button class="btn brand block" style="margin-top:8px" data-act="fix">复制「按要求改写」的要求</button>
-
+  </div>
   </div>`
 }
 
@@ -1686,14 +1764,7 @@ function ingestTitles(list) {
   if (pool.length) toast('AI 给了 ' + pool.length + ' 个候选标题，点一下就能换', 'ok')
 }
 
-/* AI 交了新一批标题，但用户自己粘过东西挡住了 ——
-   存起来让用户一键换上，而不是悄悄丢掉。 */
-let newTitlesPending = null
 
-/* 两个输入框的内容要在重绘后还在，不然 poll 一刷新就没了。
-   绑定在 input 事件上，值存到模块级变量，renderDeliverPane 再读回来。 */
-let titlePoolRaw = ''
-let fixReqRaw = ''
 /* ---------- 主题 CSS 加作用域 ----------
    排版主题给的是裸选择器（p{...} h2{...}），直接插进 <style> 会漏到
    应用自己的 UI 上 —— 实测过：切到发布页再回热点页，应用页头的
@@ -1895,7 +1966,8 @@ async function renderShip() {
   if (!el) return
   el.innerHTML = `
   <div class="ship-wrap">
-    <aside class="ship-left">
+    <!-- 第一栏：选哪一套排版 -->
+    <aside class="ship-col ship-ctl">
       <div class="ship-sec">
         <div class="ship-sec-h">排版主题<span>${themes.length} 套</span></div>
         <div class="theme-list">
@@ -1919,16 +1991,11 @@ async function renderShip() {
         <div class="seg seg-sm">
           ${WIDTHS.map(x => `<button class="seg-b ${shipWidth===x.w?'on':''}" data-act="shipWidth" data-arg="${x.w}">${x.n}</button>`).join('')}
         </div>
-        <div class="field" style="margin-top:12px">
-
-      <div class="ship-sec">
-        <div class="ship-sec-h">排版微调<span>改单篇，不改主题</span></div>
-        ${renderTunePanel()}
       </div>
 
       <div class="ship-sec">
         <div class="ship-sec-h">文章信息</div>
-        <div class="field" style="margin-top:4px">
+        <div class="field">
           <label>公众号摘要 <span class="opt">列表页显示</span></label>
           <textarea id="abs" rows="2" placeholder="一句话说清讲什么">${esc(S.project.abstract || '')}</textarea>
         </div>
@@ -1941,6 +2008,14 @@ async function renderShip() {
       <div class="ship-sec">
         <div class="ship-sec-h">发布</div>
         ${renderShipAssist()}
+      </div>
+    </aside>
+
+    <!-- 第二栏：微调。独立成栏是为了「改一处，右边立刻变」 -->
+    <aside class="ship-col ship-tune">
+      <div class="ship-sec">
+        <div class="ship-sec-h">排版微调<span>改单篇，不改主题</span></div>
+        ${renderTunePanel()}
       </div>
     </aside>
 
@@ -2042,52 +2117,6 @@ function refreshShip(force) {
   }, 260)
 }
 
-/* ---------- 成稿页右侧：文章实时预览 ----------
-   用户原话：「成稿页面右侧应该预览它的那个文章」。
-   原来右侧是一块工具面板（自检/标题/改写），工具不是文章 ——
-   写稿的人看不到自己的稿子长什么样，得等排到发布页才知道，
-   而发布页看的是排版后的效果，不是「文章本身」。
-
-   这里给的是「像读文章一样」的样子：标题、图、引用、加粗全在，
-   改一个字就跟着变。
-
-   渲染复用服务端的 /api/preview —— 前端不再自己写一份正则版 markdown，
-   两套解析器必然对不上，预览和真实结果会不一样。 */
-/* 先给一个不含正文的骨架，接口回来再填。避免整块空白。 */
-function draftHtml(body) {
-  const b = String(body || '')
-  if (!b.trim()) return '<div class="wv-empty">正文还是空的。AI 写好会自动落进来。</div>'
-  return '<div class="wv-loading">正在排版…</div>'
-}
-
-function refreshWritePreview() {
-  clearTimeout(wvTimer)
-  wvTimer = setTimeout(async () => {
-    const box = document.getElementById('wv-body')
-    if (!box) return
-    const title = String((S.project && S.project.title) || '')
-    const body = String(S.body || '')
-    if (!body.trim()) {
-      box.innerHTML = draftHtml(body)
-      return
-    }
-    /* 领号。打字是连续的，不校验就会让慢的旧结果盖掉新的。 */
-    const seq = ++wvSeq
-    try {
-      const r = await api('/preview', { text: body, theme: 'classic', images: S.images })
-      if (seq !== wvSeq) return
-      if (!r || !r.html) throw new Error('没返回内容')
-      box.innerHTML =
-        (title ? '<h1 class="wv-t">' + esc(title) + '</h1>' : '') +
-        '<div class="wv-c">' + r.html + '</div>'
-    } catch (e) {
-      if (seq !== wvSeq) return
-      box.innerHTML =
-        (title ? '<h1 class="wv-t">' + esc(title) + '</h1>' : '') +
-        '<div class="wv-c"><div class="wv-loading">预览没排出来：' + esc(e.message || '未知错误') + '</div></div>'
-    }
-  }, 300)
-}
 /* ---------- 事实清单：按「写错了会怎样」分级 ----------
    判据只看一件事：这条错了，读者会不会当场发现，或整篇跟着塌。
    高危 = 精确数字 / 直接引语 / 因果归因（错了会被抓出来）
@@ -2953,7 +2982,7 @@ function bind() {
   document.addEventListener('input', e => {
     const t = e.target
     if (t.id === 'body') { S.body = t.value; bodyDirty = true; markDirty('body'); save(); refreshShip() }
-    else if (t.id === 'etitle') { S.project.title = t.value; markDirty('project'); save(); refreshWritePreview() }
+    else if (t.id === 'etitle') { S.project.title = t.value; markDirty('project'); save() }
     else if (t.id === 'topic') { S.project.topic = t.value; markDirty('project'); save() }
     else if (t.id === 'req') { S.project.req = t.value; markDirty('project'); save() }
     else if (t.id === 'abs') { S.project.abstract = t.value; markDirty('project'); save(); refreshShip() }
@@ -2961,7 +2990,7 @@ function bind() {
     /* 交付面板的两个输入框。存模块级变量 + 防抖重绘，
        因为 renderWrite 会重建 DOM，DOM 上的 value 会被抹掉。 */
     else if (t.id === 'title-in') Actions.keepTitlePool(t.value)
-    else if (t.id === 'fixreq') Actions.keepFixReq(t.value)
+    else if (t.id === 'as-fixreq') Actions.keepFixReq(t.value)
   })
   // 字数 / 文风下拉
   document.addEventListener('change', e => {
