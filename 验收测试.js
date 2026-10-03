@@ -920,8 +920,132 @@ ok('★ 手册章节编号连续（插节后忘了顺延，AI 会引用错）', 
   for (var i = 0; i < nums.length; i++) if (nums[i] !== i + 1) return false
   return true
 })())
-ok('★ 手册的自检项数与实际一致（十二项）',
-  /自检这十二项/.test(manual))
+/* 不写死「十二项」——加一项就忘了改这里。 */
+ok('★ 手册的自检项数与实际一致（不去数代码里的条数）',
+  (function(){
+    var n = (js.match(/rows\.push\(chk\(/g) || []).length
+    var m = manual.match(/自检这(十[一二三]|十[一二三]\s*\S{0,4})?项/)
+    if (!m) return false
+    var CN = { '十': 10, '十一': 11, '十二': 12, '十三': 13, '十四': 14 }
+    var v = CN[m[1].trim()]
+    return v === n
+  })())
+
+/* ════════ 9d5. 否定式判据不能写窄 ════════
+   用户原话：「为什么还有很多假设的否定句？提前否定那种句式在。」
+
+   这一轮从正文里挖出 7 个小节标题 + 6 类段落的提前否定和否定式，
+   写完才发现自己上一轮的判据根本没抓到它们 ——
+   原因不是缺规则，是规则写窄了。
+
+   ★ 规则写窄比没有规则更糟：
+     它给出「已经检查过了」的错觉，实际在漏。
+     上一轮 style-check-me 报「合格 100 分」，稿子里全是提前否定。
+
+   三处窄法：
+     一 「不是A而是B」第二半只认「而是/只是/更」，
+         漏了「她是」「是那个」「是「我想去南极」」
+     二 标题层完全没人管（元标题/预告式/双重否定祈使）
+     三 否定式收尾（跟X没关系 / 不是治愈）不在任何一组里 */
+
+sec('9d5 否定式判据覆盖')
+ok('★ 不是A而是B 的第二半不只认「而是」（实测漏过三句）',
+  /不是\[\^。！？\\n\]\{1,26\}\[，,\]\?\\s\*\(而是\|只是\|更\|是\|并非\|更像是\)/.test(sty))
+ok('★ app.js 同步补宽（两份判据不能分叉）',
+  /而是\|只是\|更\|是\|并非\|更像是/.test(js))
+ok('★ 新增「预先否掉没人说的话」（提前否定的近亲）',
+  /预先否掉没人说的话/.test(sty) && /预先否掉没人说的话/.test(js))
+ok('★ 新增「否定式收尾」（跟X没关系 / 不是治愈）',
+  /否定式收尾/.test(sty) && /不是治愈/.test(sty))
+ok('★ 标题层有四条规则（之前完全没人管）',
+  /提前否定的小节标题/.test(sty) && /元标题/.test(sty) &&
+  /预告式标题/.test(sty) && /双重否定的小节标题/.test(sty))
+ok('★ 标题里的否定也抓（「## 五、…不是「我战胜了癌症」）',
+  /标题里的否定/.test(sty))
+ok('★ 新增「自我预设」（作者先替读者担心）',
+  /自我预设/.test(sty) && /我最怕的就是/.test(sty))
+
+/* 负样本测试文件必须存在且全绿 ——
+   把删掉的句子当负样本，是「改稿」和「改判据」接上的唯一手段。 */
+ok('★ 有 neg-test.mjs（删掉的句子全部当负样本）',
+  fs.existsSync(ROOT + '/engine/neg-test.mjs'))
+ok('★ neg-test 覆盖全部六类新判据',
+  (function(){
+    var t = fs.readFileSync(ROOT + '/engine/neg-test.mjs', 'utf8')
+    return /元标题/.test(t) && /预告式/.test(t) && /双重否定的小节标题|双重否定/.test(t) &&
+      /标题里的否定|标题内否定/.test(t) && /自我预设/.test(t) &&
+      /预先否掉/.test(t) && /否定式收尾|没关系/.test(t)
+  })())
+ok('★ neg-test 同时验「必须放行」（白名单误伤同样是 bug）',
+  /必须放行/.test(fs.readFileSync(ROOT + '/engine/neg-test.mjs', 'utf8')))
+
+/* 白名单这轮放过三种误伤，全是「写窄」：
+     图注里带「。图/」的复杂内容、表格跨格的冒号、正文第一行的「出处：」 */
+ok('★ 白名单放宽到能覆盖复杂图注（含标点和长文本）',
+  /0,140\}/.test(sty) || /\{0,140\}/.test(sty))
+ok('★ 白名单认表格跨格（原来只认单格内）',
+  /\{0,300\}\\\[\\^\[\^\\n\]\{0,300\}\\\[\\^\[\^\\n\]\{0,300\}\\\|/.test(sty) ||
+  /\(\\\|\[\^\\n\]\{0,300\}/.test(sty))
+ok('★ 白名单认「正文第一行没有换行符」的出处标注',
+  /\(\^\|\\n\)/.test(sty))
+
+/* ════════ 9d6. 标题必须一并交 ════════
+   用户原话「你最后给出标题都得几种，不要需要让人再操作第二步了」
+   这句话栽过两次：功能建好了，data/titles.json 一直是空的，
+   用户每次点开成稿页看到的都是空候选区。
+
+   原因不是没写手册，是手册里那句话被淹没了。
+   放进自检面板才跑得掉 —— 它会红在用户每天看的那 13 项里。 */
+sec('9d6 标题零第二步')
+ok('★ data/titles.json 存在且不是空数组',
+  (function(){
+    try {
+      var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+      return Array.isArray(t) && t.length >= 6
+    } catch (e) { return false }
+  })())
+ok('★ 一次给足 6 个（用户要的是「好几种」）',
+  (function(){
+    try {
+      return JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8')).length >= 6
+    } catch (e) { return false }
+  })())
+ok('★ 自检面板有「备选标题」这一项（跑不掉）',
+  (js.match(/rows\.push\(chk\(/g) || []).length === 13 &&
+  /chk\(titlePool\.length > 0, '备选标题'/.test(js))
+ok('★ 右侧摘要第一条就是备选标题（它是最想要的东西）',
+  /function renderAsideCheck[\s\S]{0,900}?line\(titlePool\.length > 0, '备选标题'/.test(js))
+ok('★ 没交时的提示写明「不该让用户再追问」',
+  /不该让用户再追问/.test(js))
+ok('★ 手册写了「自检十二项」要改成十三项',
+  /自检这十三项/.test(manual) || /自检这十二项/.test(manual))
+
+/* ════════ 9d7. 正文不能有整段重复 ════════
+   实测 4177 字的稿子里，87~91 行和 269~273 行是同一段话。
+   精确去重查不出来 —— 第二处少了加粗标记。
+   只能靠高相似度比对。 */
+sec('9d7 正文重复')
+ok('★ 当前正文没有重复段落',
+  (function(){
+    var b = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+    var paras = b.split(/\n\s*\n/).map(function(x) { return x.trim() })
+      .filter(function(x) { return x.length > 25 })
+    var seen = new Set()
+    var dup = 0
+    paras.forEach(function(p) { if (seen.has(p)) dup++; else seen.add(p) })
+    return dup === 0
+  })())
+ok('★ 高相似度段落也不重复（去掉加粗标记后仍相同）',
+  (function(){
+    var b = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+    var norm = b.replace(/\*\*/g, '')
+    var paras = norm.split(/\n\s*\n/).map(function(x) { return x.trim() })
+      .filter(function(x) { return x.length > 25 })
+    var seen = new Set()
+    var dup = 0
+    paras.forEach(function(p) { if (seen.has(p)) dup++; else seen.add(p) })
+    return dup === 0
+  })())
 
 sec('9ca 暂时性死区')
 {
