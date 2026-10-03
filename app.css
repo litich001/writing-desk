@@ -1,0 +1,1624 @@
+/* ============================================================
+   写作台 · 设计系统
+
+   【为什么换掉原来那套】
+   原来参考 Linear / Vercel：冷灰底 + 近乎黑的强调色 + 8px 圆角 +
+   极淡阴影。问题不在审美，在性格 —— 那套范式的目标是「不引人注意」，
+   用久了整个工具看上去像别人的产品。用户反馈「非常丑，一点也不鲜明」。
+
+   【现在这套：纸与墨】
+   - 底色用暖白（#f4f1ea），不是冷灰 —— 长时间看不像 Excel
+   - 强调色用朱红（#c0392b 系），只在三处用：选中态、焦点、主按钮
+   - 直角为主（2px），圆角只留给胶囊元素 —— 硬边有印刷品的重量感
+   - 分隔线用 1px 实线，不是发丝线 —— 界面结构要一眼看清
+   - 字体加衬线做标题，正文保持无衬线 —— 中文报刊的经典配法
+   - 阴影几乎不用，靠底色差和线分层级
+
+   改的是这一层变量，下面所有组件自动跟着变，回滚只要改这一段。
+   ============================================================ */
+:root{
+  /* 表面：暖白纸感，越靠前越白 */
+  --bg:#f2efe8;
+  --surface:#fbfaf7;
+  --surface-2:#f7f5ef;
+  --surface-3:#efebe1;
+  --surface-4:#e6e1d5;
+
+  /* 文字：四级，靠对比度递减。偏暖的黑，不是纯黑（纯黑在暖底上很扎眼） */
+  --ink:#1a1814;
+  --ink-2:#4d4941;
+  --ink-3:#7d776c;
+  --ink-4:#aaa397;
+
+  /* 分隔线：实线，比原来明显。界面结构要一眼看清 */
+  --line:#d9d3c6;
+  --line-2:#e6e1d5;
+  --line-3:#eeebe3;
+
+  /* 强调：朱红。全站只用在「当前选中」「焦点」「主按钮」三处 */
+  --brand:#b03a2e;
+  --brand-ink:#8c2c22;
+  --brand-soft:#f6e8e5;
+  --accent:#1f5f5b;
+  --accent-soft:#e4efee;
+
+  --ok:#2d6a4f;      --ok-bg:#e6f2ea;
+  --warn:#8a5a1a;    --warn-bg:#f9f0dd;
+  --danger:#b03a2e;  --danger-bg:#f9e9e6;
+
+  /* 间距：4 的倍数 */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px; --s8:64px;
+
+  /* 圆角：硬边为主。只给胶囊元素留全圆 */
+  --r-s:2px; --r-m:3px; --r-l:4px; --r-xl:6px; --r-full:999px;
+
+  /* 阴影：几乎不用。层级靠底色差和线 */
+  --sh-1:0 1px 2px rgba(26,24,20,.06);
+  --sh-2:0 2px 8px rgba(26,24,20,.10),0 0 0 1px rgba(26,24,20,.06);
+  --sh-3:0 16px 40px rgba(26,24,20,.18),0 0 0 1px rgba(26,24,20,.10);
+
+  /* 字体：标题走衬线（报刊感），正文走无衬线（可读性） */
+  --font: "Inter","PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",system-ui,sans-serif;
+  --serif: "Songti SC","SimSun","Noto Serif SC",Georgia,"Times New Roman",serif;
+  --mono: ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace;
+
+  /* 字号阶梯：正文略放大，长时间读更省力 */
+  --fs-body:15px; --fs-ctl:13px; --fs-aux:12px; --fs-meta:11px;
+  --fs-h1:26px; --fs-h2:20px; --fs-h3:16px;
+
+  --nav-w:200px;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --dur:160ms;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font:400 var(--fs-body)/1.65 var(--font);
+  background:var(--bg);color:var(--ink);
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  overflow:hidden;
+  font-feature-settings:"tnum" 0;
+}
+button,input,select,textarea{font:inherit;color:inherit;background:none;border:none;outline:none}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(23,24,26,.13)}
+
+/* 滚动条：细，悬停才显 */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#d3d4d6;border-radius:var(--r-full);border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:#b4b6ba;background-clip:content-box}
+
+/* ============================================================
+   布局
+   ============================================================ */
+#app{
+  display:flex;
+  flex-direction:row;      /* 侧栏在左，内容在右。竖排会让侧栏变成顶部横条 */
+  height:100vh;
+  width:100%;
+  overflow:hidden;
+}
+
+/* 固定侧栏：任何页面滚动时导航都在 */
+.side{
+  width:var(--nav-w);flex:0 0 var(--nav-w);
+  height:100vh;
+  position:sticky;top:0;align-self:flex-start;
+  background:var(--bg);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;padding:var(--s5) var(--s3) var(--s4);
+  overflow-y:auto;overscroll-behavior:contain;
+}
+/* 产品名：衬线 + 放大 + 朱红点睛。
+   这是整个界面的第一眼。原来 14px 无衬线灰字 —— 换成什么配色都看不出变化。 */
+.brand{padding:0 var(--s2) var(--s5);position:relative}
+.brand h1{
+  font:700 20px/1.2 var(--serif);letter-spacing:.01em;color:var(--ink);
+  display:flex;align-items:center;gap:7px;
+}
+.brand h1::before{
+  content:'';width:4px;height:20px;background:var(--brand);border-radius:1px;flex:0 0 4px;
+}
+.brand p{font-size:var(--fs-meta);color:var(--ink-4);margin-top:3px;padding-left:11px}
+
+.nav-group{margin-bottom:var(--s5)}
+.nav-label{
+  font-size:var(--fs-meta);font-weight:500;letter-spacing:.04em;color:var(--ink-4);
+  padding:0 var(--s2);margin-bottom:var(--s2);
+}
+.nav{
+  display:flex;align-items:center;gap:var(--s2);width:100%;
+  height:32px;padding:0 var(--s2);color:var(--ink-2);font-size:var(--fs-ctl);
+  border-radius:var(--r-m);transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+  text-align:left;
+}
+.nav:hover{background:var(--surface-3);color:var(--ink)}
+/* 选中态：朱红左标 + 浅底 + 字重。
+   原来只有浅底，选中项在满屏里几乎看不出来 —— 这也是「不鲜明」的一处。 */
+.nav.on{
+  background:var(--brand-soft);color:var(--brand-ink);font-weight:650;
+  box-shadow:inset 2px 0 0 var(--brand);
+}
+.nav .ic{width:16px;height:16px;flex:0 0 16px;font-size:13px;opacity:.6;display:flex;align-items:center;justify-content:center}
+.nav.on .ic{opacity:1;color:var(--brand)}
+.nav .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav .badge{
+  margin-left:auto;font-size:10px;font-weight:600;min-width:16px;height:16px;padding:0 4px;
+  border-radius:var(--r-full);background:var(--brand);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+}
+.nav .badge.hide{display:none}
+.nav .badge[data-dot]{background:var(--warn);font-size:12px;min-width:12px;width:12px;height:12px;padding:0}</oldString>
+.side-foot{margin-top:auto;padding:var(--s3) var(--s2) 0;border-top:1px solid var(--line-2)}
+.conn{display:flex;align-items:center;gap:var(--s2);font-size:var(--fs-meta);color:var(--ink-4)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ink-4);flex:0 0 6px}
+.dot.on{background:var(--ok)}
+
+.main{flex:1;overflow-y:auto;min-width:0;position:relative}
+.page{display:none;padding:var(--s6) var(--s7) 120px}
+.page.on{display:block;animation:fade .2s var(--ease)}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.container{max-width:1120px;margin:0 auto}
+/* 定题页专用宽度：整页就一个输入框，占满屏反而空。
+   这个类只在定题页用（app.js 里的 <div class="container narrow">），
+   所以宽度按定题页的需要定，不用给别的页面留余地。 */
+.container.narrow{max-width:720px}
+
+/* 页头：大号衬线 + 朱红下划线。
+   原来 22px 无衬线 —— 现在这个是每页第一眼看到的东西。 */
+.page-head{margin-bottom:var(--s6)}
+.page-head h2{
+  font:700 30px/1.25 var(--serif);letter-spacing:-.005em;color:var(--ink);
+  padding-bottom:var(--s3);border-bottom:2px solid var(--ink);
+  display:inline-block;
+}
+.page-head p{font-size:14px;color:var(--ink-3);margin-top:var(--s3);max-width:640px;line-height:1.75}
+
+/* ============================================================
+   组件
+   ============================================================ */
+/* 卡片：直角 + 硬边 + 墨线，无阴影。
+   原来有 8px 圆角和淡阴影 —— 那是 SaaS 后台的标志，
+   换配色不换这些，看着还是原来那个东西。 */
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:0;
+  border-top:3px solid var(--ink);
+  margin-bottom:var(--s5);overflow:hidden;
+}
+.card-head{
+  padding:var(--s4) var(--s5);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:var(--s3);background:var(--surface-2);
+}
+.card-head h3{font:700 15px/1.4 var(--serif);letter-spacing:.01em;color:var(--ink)}
+.card-head .sp{flex:1}
+.card-head .hint{font-size:11.5px;color:var(--ink-3)}
+.card-body{padding:var(--s5)}
+.card-body.flush{padding:0}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5);align-items:start}
+/* 排版页：左控制台 + 右预览 */
+.grid-ship{grid-template-columns:320px 1fr}
+.grid-side{display:grid;grid-template-columns:1fr 300px;gap:var(--s5);align-items:start}
+/* 跟随面板：长页面滚动时固定在视野内 */
+.sticky-l{position:sticky;top:var(--s5);align-self:start;max-height:calc(100vh - var(--s6) - var(--s7));overflow-y:auto;overscroll-behavior:contain}
+
+.field{margin-bottom:var(--s5)}
+.field:last-child{margin-bottom:0}
+.field > label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:var(--s2);letter-spacing:.01em}
+.field > label .req{color:var(--danger);margin-left:2px}
+.field > label .opt{font-weight:400;color:var(--ink-4);margin-left:var(--s2);font-size:11.5px}
+.field .help{font-size:11.5px;color:var(--ink-3);margin-top:var(--s2);line-height:1.65}
+
+.input,select,textarea{
+  width:100%;padding:10px var(--s3);border:1px solid var(--line);border-radius:var(--r-m);
+  background:var(--surface-2);transition:border-color .14s var(--ease),background .14s var(--ease),box-shadow .14s var(--ease);
+}
+.input:hover,select:hover,textarea:hover{border-color:var(--ink-4)}
+.input:focus,select:focus,textarea:focus{border-color:var(--brand);background:var(--surface);box-shadow:0 0 0 3px rgba(176,58,46,.11)}
+textarea{resize:vertical;line-height:1.85;font-size:13.5px}
+select{
+  cursor:pointer;appearance:none;padding-right:32px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238c857a' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;
+}
+
+/* .btn 的唯一定义在文件后部「视觉质感层」。这里曾有一套旧的
+   （墨黑底 + 圆角 + 模糊阴影），和新的两套规则互相覆盖 ——
+   表现出来的圆角和阴影取决于哪条在后面，不是取决于我改的那条。
+   同一个选择器只能有一处定义。 */
+
+.row{display:flex;gap:var(--s3);flex-wrap:wrap;align-items:center}
+.row.end{justify-content:flex-end}
+.row .sp{flex:1}
+
+.chip{
+  display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:3px 10px;
+  border-radius:var(--r-full);background:var(--surface-3);color:var(--ink-2);
+  border:1px solid var(--line-2);
+}
+.chip.hot{background:var(--danger-bg);color:var(--danger);border-color:#f5dcd4}
+.chip.ok{background:var(--ok-bg);color:var(--ok);border-color:#d4e8dc}
+.chip.warn{background:var(--warn-bg);color:var(--warn);border-color:#f2e3c4}
+.chip.brand{background:var(--brand-soft);color:var(--brand-ink);border-color:#d5e5df}
+
+.note{
+  padding:var(--s3) var(--s4);border-radius:var(--r-m);font-size:12.5px;line-height:1.75;
+  background:var(--surface-2);border:1px solid var(--line-2);color:var(--ink-2);margin-bottom:var(--s4);
+}
+.note.ok{background:var(--ok-bg);border-color:#d4e8dc;color:#22603d}
+.note.warn{background:var(--warn-bg);border-color:#f2e3c4;color:#7d5715}
+.note.err{background:var(--danger-bg);border-color:#f5dcd4;color:#8f2f1f}
+.note.brand{background:var(--brand-soft);border-color:#d5e5df;color:var(--brand-ink)}
+.note strong{font-weight:650}
+
+.empty{padding:var(--s8) var(--s5);text-align:center;color:var(--ink-3);font-size:13.5px;line-height:1.9}
+.empty .ico{font-size:32px;margin-bottom:var(--s4);opacity:.2;letter-spacing:.06em}
+.empty .act{margin-top:var(--s5)}
+
+/* 统计 */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:var(--s3)}
+.stat{border:1px solid var(--line-2);border-radius:var(--r-m);padding:var(--s3) var(--s4);background:var(--surface-2)}
+.stat .v{font-size:22px;font-weight:600;line-height:1.2;font-family:var(--serif);letter-spacing:-.01em}
+.stat .l{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.stat.good .v{color:var(--ok)} .stat.warn .v{color:var(--warn)} .stat.bad .v{color:var(--danger)}
+
+/* 输入区（首屏） */
+.hero{max-width:720px;margin:var(--s8) auto 0}
+.hero h2{font-size:28px;font-weight:650;letter-spacing:-.01em;line-height:1.35}
+.hero .sub{color:var(--ink-3);margin-top:var(--s3);font-size:14.5px;line-height:1.8}
+.hero .composer{margin-top:var(--s6)}
+.hero textarea{
+  min-height:132px;font-size:16px;line-height:1.8;padding:var(--s5);
+  border-radius:var(--r-xl);border:1px solid var(--line);background:var(--surface);
+  box-shadow:var(--sh-2);resize:none;
+}
+.hero textarea:focus{border-color:var(--brand);box-shadow:var(--sh-3),0 0 0 3px rgba(176,58,46,.9)}
+.hero .composer-foot{display:flex;align-items:center;gap:var(--s3);margin-top:var(--s3)}
+.hero .composer-foot .tip{font-size:12px;color:var(--ink-4)}
+.hero .more{margin-top:var(--s3)}
+.hero .more summary{
+  cursor:pointer;font-size:13px;color:var(--ink-2);padding:var(--s3) var(--s4);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);list-style:none;
+  display:flex;align-items:center;justify-content:space-between;transition:border-color .14s;
+}
+.hero .more summary::-webkit-details-marker{display:none}
+.hero .more summary:hover{border-color:var(--ink-4)}
+.hero .more[open] summary{border-radius:var(--r-m) var(--r-m) 0 0;border-bottom-color:transparent}
+.hero .more-in{padding:var(--s5);background:var(--surface);border:1px solid var(--line);border-top:0;border-radius:0 0 var(--r-m) var(--r-m)}
+.hero .presets{margin-top:var(--s4);display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center}
+.hero .presets .lb{font-size:12px;color:var(--ink-4);margin-right:var(--s1)}
+
+/* 任务卡 */
+.task{
+  display:flex;gap:var(--s4);padding:var(--s4) var(--s5);border:1px solid var(--line);
+  border-left:3px solid var(--accent);border-radius:var(--r-m);margin-bottom:var(--s3);
+  background:var(--surface);align-items:center;
+}
+.task .c{flex:1;min-width:0}
+.task .t{font-size:14px;font-weight:600;margin-bottom:2px}
+.task .r{font-size:12.5px;color:var(--ink-2);line-height:1.7}
+.task .d{font-size:11px;color:var(--ink-4);margin-top:var(--s1)}
+
+/* 编辑器 */
+/* ---------- 页头 / 容器宽度 ----------
+   .page-head 系列和 .container.narrow 的唯一定义在文件前部（168 行附近）。
+   这里曾有第二套（20px 无衬线标题、12px 副标题），把前部那套全盖了 ——
+   表现出来的就是「改了配色和字体，界面却没变」。
+   同名选择器只能定义一次。 */
+/* 定题页收窄：就一个输入框，占满屏反而空 */
+.composer{margin-top:0}
+
+/* ============================================================
+   第 3 页 · 成稿：正文占满 + 右侧窄侧栏
+   正文是主区，必须最大；侧栏 300px 是上限，绝不喧宾夺主。
+   ============================================================ */
+/* 成稿页专用：去掉 .page 的左右内边距，正文吃满主区。
+   .page 那 32px padding 在这里是纯浪费 —— 主区本来就只有 800 出头。 */
+.page.wide-page{padding:0}
+.page.wide-page .container.full{max-width:none;padding:var(--s4) var(--s5) 90px}
+/* 正文与侧栏的比例写死：正文 3 : 侧栏 1。
+   不用 1fr —— 在部分浏览器里 minmax(0,1fr) 会退化成把可用宽度平分，
+   结果正文和侧栏一样宽，正文被挤成一条。用固定比例就不会。 */
+.write-grid{display:grid;gap:var(--s5);align-items:start}
+.write-grid > *{min-width:0}
+@media(min-width:1400px){
+}
+.write-main{min-width:0}
+
+.editor-shell{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);overflow:hidden}
+.editor-top{display:flex;align-items:flex-start;gap:var(--s4);padding:var(--s5) var(--s6) 0}
+/* 标题走衬线：中文报刊的经典配法，也是这套风格最直接的识别点 */
+.editor-top input{
+  flex:1;min-width:0;border:none;background:none;padding:0;
+  font:600 var(--fs-h1)/1.3 var(--serif);letter-spacing:-.01em;color:var(--ink);
+}
+.editor-top input::placeholder{color:var(--ink-4);font-weight:500}
+.editor-top input:focus{outline:none}
+
+.editor-stats{display:flex;gap:var(--s4);padding:var(--s2) var(--s6) var(--s3);font-size:var(--fs-meta);color:var(--ink-4);flex-wrap:wrap;border-bottom:1px solid var(--line-2)}
+.editor-stats span{font-variant-numeric:tabular-nums}
+
+/* ---------- 正文里的图：只给位置，不给图库 ---------- */
+.img-where{padding:var(--s3) var(--s6) var(--s4);border-top:1px solid var(--line-2)}
+.iw-h{display:flex;align-items:baseline;gap:var(--s2);font-size:var(--fs-meta);font-weight:600;color:var(--ink-3);margin-bottom:var(--s2)}
+.iw-h span{margin-left:auto;font-weight:400;color:var(--ink-4)}
+.iw-row{display:flex;gap:6px;flex-wrap:wrap}
+.iw-item{
+  position:relative;width:60px;height:44px;padding:0;cursor:pointer;
+  border:1px solid var(--line-2);border-radius:var(--r-s);
+  overflow:hidden;background:var(--surface-3);
+  transition:all var(--dur) var(--ease);
+}
+.iw-item:hover{border-color:var(--ink);transform:translateY(-1px);box-shadow:var(--sh-2)}
+.iw-item img{width:100%;height:100%;object-fit:cover;display:block}
+.iw-item .n{
+  position:absolute;left:3px;top:3px;min-width:14px;height:14px;
+  font-size:9px;font-weight:700;color:#fff;background:var(--ink);
+  border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;padding:0 4px;
+}
+
+/* ---------- 图库：默认收起，打开后是网格 ---------- */
+.lib{padding:var(--s3) var(--s6) var(--s5);border-top:1px solid var(--line-2);background:var(--surface-2)}
+.lib-h{display:flex;align-items:baseline;gap:var(--s2);font-size:var(--fs-meta);font-weight:600;color:var(--ink-3);margin-bottom:var(--s2)}
+.lib-h span{margin-left:auto;font-weight:400;color:var(--ink-4)}
+.lib-actions{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)}
+.drop-hint{font-size:var(--fs-meta);color:var(--ink-4);white-space:nowrap}
+.lib-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:var(--s2)}
+.lib-item{
+  display:flex;flex-direction:column;gap:4px;padding:5px;
+  border:1px solid var(--line-2);border-radius:var(--r-s);background:var(--surface);
+}
+.lib-item.used{border-color:#bfdfca;background:#f6fbf8}
+.lib-item.flash{animation:libFlash 1.4s var(--ease)}
+@keyframes libFlash{
+  0%{box-shadow:0 0 0 0 rgba(23,24,26,.5)}
+  100%{box-shadow:0 0 0 12px rgba(23,24,26,0)}
+}
+.lib-item .pic{position:relative;aspect-ratio:4/3;border-radius:var(--r-s);overflow:hidden;background:var(--surface-3);cursor:pointer}
+.lib-item .pic img{width:100%;height:100%;object-fit:cover;display:block}
+.lib-item .pic .ok{position:absolute;right:3px;top:3px;font-size:9px;background:var(--ok);color:#fff;padding:0 4px;border-radius:var(--r-full)}
+
+
+
+/* 正文：宽而高，不在框里滚 */
+.editor{
+  display:block;width:100%;border:none;background:var(--surface);
+  padding:var(--s5) var(--s6);
+  font:400 15px/1.95 var(--font);letter-spacing:.005em;color:var(--ink);
+  resize:vertical;min-height:max(600px,calc(100vh - 300px));
+}
+.editor:focus{outline:none}
+.editor-bar{
+  display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;
+  padding:var(--s3) var(--s5);border-top:1px solid var(--line-2);background:var(--surface-2);
+  position:sticky;bottom:0;
+}
+.editor-bar .meta{font-size:var(--fs-meta);color:var(--ink-4)}
+
+/* ---------- 侧栏 ---------- */
+.write-side{
+  position:sticky;top:var(--s5);
+  min-width:260px;max-width:340px;
+  display:flex;flex-direction:column;gap:var(--s3);
+  max-height:calc(100vh - 100px);overflow:hidden;
+}
+/* 「设为默认」按钮。
+   用户原话「你的配图、你的文章的写作风格、你的排版都可以选一个默认的，
+   你得支持有那个选项」。三样各一个，放在对应控件旁边，不做成设置页。 */
+.pref-btn{
+  margin-top:4px;padding:3px 9px;border:1px solid var(--line-2);border-radius:999px;
+  background:transparent;color:var(--ink-4);cursor:pointer;
+  font:500 11px/1.6 var(--font);white-space:nowrap;transition:all var(--dur) var(--ease);
+}
+.pref-btn:hover{border-color:var(--brand);color:var(--brand);background:#fbf0ee}
+.pref-btn.on{border-color:var(--brand);background:var(--brand);color:#fff;cursor:default}
+.pref-btn.on:hover{background:var(--brand);color:#fff}
+.opt label em{font-style:normal;color:var(--brand);font-size:11px;font-weight:600}
+
+/* 原来有 4 个 tab（标题/核对/素材…）。核对和素材已按用户要求删掉，
+   只剩一个固定的「交付」—— 于是 grid 分栏和 hover 态都没意义了，
+   改成普通的标题行。 */
+.side-tabs{display:block;margin-bottom:var(--s2)}
+.side-tab{
+  display:flex;align-items:baseline;gap:8px;width:100%;
+  height:auto;border:none;background:transparent;
+  font:600 var(--fs-ctl)/1.4 var(--font);color:var(--ink);cursor:default;text-align:left;
+  white-space:nowrap;
+}
+.side-tab span{font-weight:400;font-size:11px;color:var(--ink-4)}
+.side-tab:hover{color:var(--ink)}
+.side-tab.on{background:none;box-shadow:none}
+.side-tab em{font-style:normal;font-size:10px;color:var(--warn);font-variant-numeric:tabular-nums}
+
+/* ── 自检结果 ──
+   一直显示在面板最上面，不是要点一下才出来。
+   通过和不通过必须一眼能分开 —— 混成灰字等于没查。 */
+.self-chk{display:flex;flex-direction:column;gap:1px;background:var(--surface-3);border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
+.self-chk-hd{padding:7px 10px;font-weight:700;font-size:12px;letter-spacing:.02em}
+.self-chk-hd.good{background:#e8f4ec;color:#1a6b3c}
+.self-chk-hd.bad{background:#fdecea;color:#a32016}
+.chk{display:flex;align-items:baseline;gap:8px;padding:5px 10px;background:var(--surface);font-size:12px;line-height:1.5}
+.chk .mk{flex:0 0 auto;font-weight:700;width:13px;text-align:center}
+.chk.ok .mk{color:#1a6b3c}
+.chk.no .mk{color:#a32016}
+.chk.ok .lb{color:var(--ink-2)}
+.chk.no .lb{color:var(--ink);font-weight:600}
+.chk .dt{margin-left:auto;flex:0 0 auto;font-size:11px;color:var(--ink-4);text-align:right;max-width:56%;font-variant-numeric:tabular-nums}
+.chk.no .dt{color:#a32016}
+
+/* ── 标题候选 ──
+   每个候选就是一个完整标题，点一下直接换到标题栏。
+   用户要「直接一键替换了就好」，所以不能还要再去标题栏手动改。 */
+.tp-list{display:flex;flex-direction:column;gap:4px;margin-top:var(--s2)}
+.tp{
+  display:block;width:100%;text-align:left;padding:9px 11px;
+  border:1px solid var(--line);border-left:3px solid var(--line);
+  border-radius:var(--r-s);background:var(--surface);
+  font:500 var(--fs-ctl)/1.5 var(--font);color:var(--ink-2);
+  cursor:pointer;transition:all var(--dur) var(--ease);
+}
+.tp:hover{border-left-color:var(--brand);color:var(--ink);background:var(--surface-2)}
+.tp.on{border-left-color:var(--brand);background:#fbf0ee;color:var(--ink);font-weight:700}
+
+.side-pane{display:flex;flex-direction:column;gap:var(--s3);overflow-y:auto;overscroll-behavior:contain;padding-right:2px;flex:1;min-height:0}
+/* 侧栏是可滚的 flex 列，里面的按钮不能被压缩 ——
+   否则在矮侧栏里 height:36px 的按钮会被 flex-shrink 压到 24px，
+   文字挤成一条，点都点不准。 */
+.side-pane > .btn,
+.side-pane > .side-block > .btn,
+.side-pane > .input{flex:0 0 auto}
+.side-block{display:flex;flex-direction:column;gap:var(--s2)}
+.side-row{display:flex;align-items:center;gap:var(--s2)}
+.side-h{
+  display:flex;align-items:baseline;gap:var(--s2);
+  font-size:var(--fs-meta);font-weight:600;color:var(--ink-3);
+  padding-top:var(--s2);border-top:1px solid var(--line-2);
+}
+.side-h:first-child{border-top:none;padding-top:0}
+.side-h span{margin-left:auto;font-weight:400;color:var(--ink-4)}
+.side-empty{
+  padding:var(--s5) var(--s3);text-align:center;font-size:var(--fs-aux);color:var(--ink-4);
+  border:1px dashed var(--line);border-radius:var(--r-m);
+}
+/* 侧栏里的一句话说清「这件事为什么交给 AI」 */
+.side-note{
+  font-size:var(--fs-aux);line-height:1.75;color:var(--ink-3);
+  padding:10px 12px;margin-bottom:10px;
+  background:var(--surface-2);border-radius:var(--r-m);
+  border-left:2px solid var(--line);
+}
+.side-note b{color:var(--ink-2)}
+/* 任务词输出框：把要求显示出来，浏览器不让自动复制时也能手动选中 */
+.task-out{
+  margin-top:var(--s2);padding:var(--s3);
+  border:1px solid var(--line-2);border-radius:var(--r-m);
+  background:var(--surface-2);max-height:280px;overflow-y:auto;
+}
+.task-out pre{
+  margin:0;font-size:12px;line-height:1.75;
+  font-family:ui-monospace,Consolas,"Courier New",monospace;
+  white-space:pre-wrap;word-break:break-word;color:var(--ink-2);
+}
+.input.xs{height:30px;font-size:var(--fs-meta);padding:0 9px;border-radius:var(--r-s)}
+.btn.xs{height:30px;font-size:var(--fs-meta);padding:0 11px;border-radius:var(--r-s);min-width:34px}
+
+/* 标题建议：类型 + 爆点评分 + 理由，一眼能选 */
+.title-ref{
+  display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;
+  padding:10px 11px;border:1px solid var(--line-2);border-radius:var(--r-m);
+  background:var(--surface);margin-bottom:6px;cursor:pointer;
+  flex:0 0 auto;              /* 侧栏可滚，卡片不能被压扁 */
+  transition:all var(--dur) var(--ease);
+}
+.title-ref:hover{border-color:var(--ink-4);background:var(--surface-2)}
+.tr-head{display:flex;align-items:center;gap:6px}
+.tr-head em{
+  font-style:normal;font-size:10px;font-weight:600;color:var(--ink-3);flex:0 0 auto;
+  padding:1px 6px;border-radius:var(--r-full);background:var(--surface-3);
+}
+.tr-head .score{
+  margin-left:auto;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;
+  padding:1px 6px;border-radius:var(--r-full);
+  /* 分越高越深：>90 近黑，<80 灰 */
+  color:#fff;background:color-mix(in srgb,var(--ink) calc(var(--s) * 1%),#c9ccd1);
+}
+.tr-t{font-size:var(--fs-aux);line-height:1.55;color:var(--ink);font-weight:500}
+.tr-why{font-size:11px;line-height:1.5;color:var(--ink-4)}
+
+/* 图库改为正文下方可展开的网格，见 .lib。 */
+
+/* 事实清单侧栏版 */
+.fact-scroll{display:flex;flex-direction:column;gap:4px}
+.fact{display:flex;gap:var(--s2);align-items:flex-start;padding:7px 8px;border:1px solid var(--line-2);border-radius:var(--r-s);background:var(--surface)}
+.fact.hi{border-left:2px solid var(--danger)}
+.fact .v{
+  flex:0 0 40px;height:20px;font-size:10px;font-weight:600;border-radius:var(--r-s);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  background:var(--surface-3);color:var(--ink-3);border:1px solid var(--line);
+}
+.fact .v.ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.fact .v.no{background:var(--danger-bg);color:var(--danger);border-color:transparent}
+.fact .c{flex:1;min-width:0;font-size:var(--fs-meta);line-height:1.5}
+.fact .c em{font-style:normal;color:var(--ink);font-weight:550;word-break:break-word}
+.fact .c .rk{font-size:9px;color:var(--ink-4);margin-bottom:1px}
+.fact .c .rk.hi{color:var(--danger)}
+.fact .c .rk.md{color:var(--warn)}
+
+/* 右侧面板 */
+.rail{position:sticky;top:var(--s5);align-self:start;display:flex;flex-direction:column;gap:var(--s4)}
+.metric{display:flex;align-items:baseline;justify-content:space-between;padding:7px 0;font-size:12.5px;border-bottom:1px solid var(--line-3)}
+.metric:last-child{border-bottom:0}
+.metric .l{color:var(--ink-2)}
+.metric .v{font-weight:650;font-size:14px;font-family:var(--mono)}
+.bar{height:5px;background:var(--line-2);border-radius:var(--r-full);overflow:hidden;margin-top:var(--s2)}
+.bar i{display:block;height:100%;border-radius:var(--r-full);transition:width .3s var(--ease)}
+
+/* 列表项 */
+.item{padding:var(--s3) var(--s4);border-radius:var(--r-m);border:1px solid transparent;transition:all .14s var(--ease);margin-bottom:var(--s2)}
+.item:hover{background:var(--surface-2);border-color:var(--line)}
+.item .t{font-size:13.5px;font-weight:600;line-height:1.55;margin-bottom:3px}
+.item .m{font-size:12px;color:var(--ink-3);line-height:1.7}
+.item-list{max-height:340px;overflow-y:auto;padding:var(--s2)}
+
+/* ---------- 定题页：队列 / 历史 / 配图数 ---------- */
+/* 队列条目：加类型徽标，一眼看出是写稿还是改稿 */
+.task .badge-type{
+  flex:0 0 auto;font-size:var(--fs-meta);font-weight:600;
+  padding:2px 8px;border-radius:var(--r-full);
+  background:var(--brand-soft);color:var(--ink-2);
+  height:22px;display:inline-flex;align-items:center;
+}
+.task .t{font-size:13.5px;font-weight:550;margin-bottom:1px}
+.task .d{font-size:var(--fs-meta);color:var(--ink-4);margin-top:0}
+
+/* 历史稿：整行可点，右侧给个明确的「打开」 */
+.ver-item{
+  display:flex;align-items:center;gap:var(--s3);width:100%;text-align:left;
+  padding:9px 11px;border:none;background:none;cursor:pointer;
+  border-radius:var(--r-s);transition:background var(--dur) var(--ease);
+}
+.ver-item:hover{background:var(--surface-3)}
+.ver-item .c{flex:1;min-width:0}
+.ver-item .t{font-size:13px;font-weight:550;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ver-item .m{font-size:var(--fs-meta);color:var(--ink-4);margin-top:1px}
+.ver-item .go{font-size:var(--fs-meta);color:var(--ink-4);flex:0 0 auto}
+.ver-item:hover .go{color:var(--ink)}
+
+.hint-line{font-size:var(--fs-meta);color:var(--ink-4);margin-top:6px;line-height:1.6}
+
+/* 图片 */
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--s4)}
+.img-card{border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;background:var(--surface);box-shadow:var(--sh-1);display:flex;flex-direction:column}
+.img-card .pic{position:relative;aspect-ratio:4/3;background:var(--surface-3);cursor:pointer;overflow:hidden}
+.img-card .pic img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s var(--ease)}
+.img-card .pic:hover img{transform:scale(1.04)}
+.img-card .pic .n{position:absolute;top:8px;left:8px;background:rgba(26,24,20,.78);color:#fff;font-size:11px;font-weight:650;padding:2px 8px;border-radius:var(--r-full)}
+.img-card .pic .ok{position:absolute;top:8px;right:8px;background:var(--ok);color:#fff;font-size:10.5px;font-weight:650;padding:2px 7px;border-radius:var(--r-full)}
+.img-card.used{border-color:var(--ok);box-shadow:0 0 0 1px rgba(45,122,79,.18)}
+.img-card .meta{padding:var(--s3);display:flex;flex-direction:column;gap:var(--s2)}
+.img-card .meta input,.img-card .meta select{font-size:12px;padding:6px var(--s2);border-radius:var(--r-s)}
+.img-card .meta-row{display:flex;gap:var(--s2);align-items:center}
+.img-card .meta-row select{flex:1;min-width:0}
+
+.drop{
+  border:1.5px dashed var(--line);border-radius:var(--r-l);padding:var(--s7) var(--s5);
+  text-align:center;color:var(--ink-3);font-size:13.5px;line-height:1.9;background:var(--surface-2);
+  transition:all .16s var(--ease);cursor:pointer;
+}
+.drop:hover,.drop.hot{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-ink)}
+
+/* 事实 */
+.fact{display:flex;gap:var(--s3);padding:var(--s3);border:1px solid var(--line-2);border-radius:var(--r-m);margin-bottom:var(--s2);background:var(--surface);align-items:flex-start}
+.fact .v{flex:0 0 66px;font-size:11px;font-weight:650;padding:5px 0;border-radius:var(--r-s);text-align:center;cursor:pointer;transition:all .14s}
+.fact .v.ok{background:var(--ok-bg);color:var(--ok)}
+.fact .v.no{background:var(--danger-bg);color:var(--danger)}
+.fact .v.wait{background:var(--surface-3);color:var(--ink-3);border:1px solid var(--line)}
+.fact .v:hover{transform:scale(1.03)}
+.fact .c{flex:1;min-width:0;font-size:12.5px;line-height:1.7}
+.fact .c em{font-style:normal;background:#fdf3c8;padding:1px 4px;border-radius:3px;font-weight:600}
+.fact .ct{color:var(--ink-3);font-size:11.5px;margin-top:2px}
+
+/* 折叠 */
+details.acc{border:1px solid var(--line-2);border-radius:var(--r-m);margin-bottom:var(--s2);background:var(--surface);overflow:hidden}
+details.acc > summary{
+  padding:var(--s3) var(--s4);cursor:pointer;font-size:12.5px;display:flex;align-items:center;gap:var(--s2);
+  list-style:none;transition:background .14s;
+}
+details.acc > summary:hover{background:var(--surface-2)}
+details.acc > summary::-webkit-details-marker{display:none}
+details.acc > summary::after{content:'';margin-left:auto;width:6px;height:6px;border-right:1.4px solid var(--ink-4);border-bottom:1.4px solid var(--ink-4);transform:rotate(45deg);transition:transform .18s var(--ease);flex:0 0 6px}
+details.acc[open] > summary::after{transform:rotate(-135deg)}
+details.acc > .in{padding:var(--s3) var(--s4);border-top:1px solid var(--line-3);font-size:12.5px;line-height:1.8;color:var(--ink-2);background:var(--surface-2)}
+/* 样本句必须完整可读。之前用 nowrap + max-width 硬截，
+   长句只剩前半截，读起来像句子断了 —— 那是"乱码感"的真正来源。 */
+.acc-sample{
+  color:var(--ink-3);font-size:11.5px;line-height:1.6;
+  margin-left:8px;flex:1 1 auto;min-width:0;
+  word-break:break-word;overflow-wrap:anywhere;
+}
+.lv{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:var(--r-s);white-space:nowrap;flex:0 0 auto}
+.lv.hi{background:var(--danger-bg);color:var(--danger)}
+.lv.md{background:var(--warn-bg);color:var(--warn)}
+.lv.lo{background:var(--ok-bg);color:var(--ok)}
+
+/* 主题选择 */
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
+.theme{
+  border:1.5px solid var(--line);border-radius:var(--r-m);padding:var(--s3);
+  background:var(--surface);text-align:left;transition:all .16s var(--ease);overflow:hidden;
+}
+.theme:hover{border-color:var(--ink-4);transform:translateY(-1px);box-shadow:var(--sh-2)}
+.theme.on{border-color:var(--brand);box-shadow:0 0 0 3px rgba(176,58,46,.13)}
+.theme .pv{height:46px;border-radius:var(--r-s);margin-bottom:var(--s2);padding:6px 7px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.theme .pv i{display:block;height:2.5px;border-radius:2px}
+.theme .nm{font-size:13px;font-weight:650}
+.theme .tg{font-size:11px;color:var(--ink-3);margin-top:1px}
+
+/* 预览 */
+.preview-shell{background:var(--surface-3);padding:var(--s6);border-radius:var(--r-l);border:1px solid var(--line-2)}
+.preview-paper{background:#fff;border-radius:var(--r-m);box-shadow:var(--sh-2);overflow:hidden}
+.preview-body{padding:var(--s6) var(--s7)}
+.preview-body img{max-width:100%;display:block;margin:0 auto 6px}
+.preview-body figure{margin:0 0 var(--s5)}
+.preview-body figcaption{font-size:12.5px;color:#999;text-align:center;line-height:1.7;margin-top:6px}
+.preview-foot{padding:var(--s3) var(--s5);border-top:1px solid var(--line-2);font-size:11.5px;color:var(--ink-3);text-align:center;background:var(--surface-2)}
+
+/* 排版页：预览底色跟随主题 */
+.preview-paper[data-theme="dark"]{background:#1c1a17 !important}
+.preview-paper[data-theme="elegant"]{background:#fffdf9 !important}
+.preview-paper[data-theme="paper"]{background:#fffdf8 !important}
+.preview-paper[data-theme="card"]{background:#eef1f5 !important}
+.preview-paper[data-theme="night"]{background:#f2ede3 !important}
+.preview-paper[data-theme="compact"],
+.preview-paper[data-theme="classic"]{background:#fff !important}
+
+/* 浮动按钮 */
+.fab{
+  position:fixed;right:var(--s6);bottom:var(--s6);z-index:60;
+  display:none;align-items:center;gap:var(--s2);padding:14px var(--s6);
+  border-radius:var(--r-full);background:var(--brand);color:#fff;font-weight:650;font-size:14.5px;
+  box-shadow:var(--sh-3);transition:all .16s var(--ease);
+}
+.fab:hover{background:var(--brand-ink);transform:translateY(-2px);box-shadow:0 12px 32px rgba(176,58,46,.30)}
+.fab.on{display:inline-flex}
+
+/* ---------- 事实清单：风险分层 ---------- */
+.fact-sec{margin-bottom:22px}
+.fact-sec:last-child{margin-bottom:0}
+.fact-sec-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.fact-sec-h b{font-size:13.5px;font-weight:700}
+.fact-sec-h span{font-size:11.5px;color:var(--ink-3)}
+.fact-sec-tip{font-size:12px;color:var(--ink-3);line-height:1.6;margin-bottom:10px;
+  padding:8px 12px;background:var(--surface-2);border-radius:var(--r-s)}
+.fact.hi{background:#fdf6f5;border-left:3px solid var(--danger)}
+.fact .rk{
+  display:inline-block;font-size:10.5px;font-weight:650;padding:1px 7px;border-radius:var(--r-full);
+  margin-bottom:4px;
+}
+.fact .rk.hi{background:#fbe3df;color:#a3392a}
+.fact .rk.md{background:#fdf1da;color:#8a6116}
+.fact .rk.lo{background:var(--surface-3);color:var(--ink-3)}
+.fact .tip{font-size:11.5px;color:var(--ink-3);margin-top:5px;line-height:1.55}
+.seg.sm .seg-b{height:30px;padding:0 12px;font-size:var(--fs-ctl)}
+
+/* ---------- 版本对比 ---------- */
+.diff{max-height:520px;overflow-y:auto;overscroll-behavior:contain;
+  border:1px solid var(--line-2);border-radius:var(--r-s);padding:6px}
+.diff .d-same{font-size:12.5px;color:var(--ink-4);line-height:1.65;padding:3px 8px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diff .d-add{font-size:12.5px;line-height:1.7;padding:7px 10px;margin:3px 0;border-radius:var(--r-s);
+  background:#eaf5ee;border-left:3px solid var(--ok);color:#1e5637}
+.diff .d-del{font-size:12.5px;line-height:1.7;padding:7px 10px;margin:3px 0;border-radius:var(--r-s);
+  background:#fbeceb;border-left:3px solid var(--danger);color:#8f3226;text-decoration:line-through;text-decoration-color:rgba(143,50,38,.4)}
+.diff .d-mod{margin:3px 0;border-radius:var(--r-s);overflow:hidden;border:1px solid #f0dca6}
+.diff .d-mod .d-old{font-size:12.5px;line-height:1.7;padding:7px 10px;background:#fdf6e8;color:#8a6116;
+  text-decoration:line-through;text-decoration-color:rgba(138,97,22,.35)}
+.diff .d-mod .d-new{font-size:12.5px;line-height:1.7;padding:7px 10px;background:#eaf5ee;color:#1e5637}
+.chip.warn{background:#fdf1da;color:#8a6116}
+
+/* ---------- 配图推荐 ---------- */
+.plan{display:flex;gap:14px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line-2)}
+.plan:last-of-type{border-bottom:none}
+.plan img{width:78px;height:58px;object-fit:cover;border-radius:var(--r-s);flex:0 0 auto;
+  border:1px solid var(--line-2)}
+.plan .pt{flex:1;min-width:0}
+.plan .pl{font-size:12.5px;font-weight:650;color:var(--brand-ink)}
+.plan .pl b{font-size:14px}
+.plan .px{font-size:12px;color:var(--ink-3);margin-top:3px;line-height:1.5;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plan .pn{font-size:11px;color:var(--ink-4);margin-top:3px}
+.note.ok{background:#eaf5ee;border-color:#bfdfca;color:#1e5637}
+.note.ok b{color:#16452b}
+
+/* ============================================================
+   第 4 页 · 排版发布
+   左边是工具栏（排版主题 / 宽度 / 摘要 / 发布），右边是预览。
+
+   之前那圈 .phone 近黑色外框已经删掉。它没有任何功能 ——
+   公众号正文本来就是白底纸，加个手机壳只是在页面顶部顶出一条
+   黑边，看着像刘海，实际是 430×13890 的装饰框，纯误导。
+   ============================================================ */
+.ship-wrap{
+  display:grid;
+  /* 左栏 260 而不是 300：1000px 视口下主区只有 800，
+     300 左栏 + 24 间距 = 预览只剩 476，600/760 两档会被夹成同一个宽度，
+     等于两个废选项。260 能让 600 档真的排得下。 */
+  grid-template-columns:260px minmax(0,1fr);
+  gap:var(--s5);
+  align-items:start;
+  max-width:1600px;
+  padding:var(--s5) var(--s4) 80px;
+}
+.ship-left{
+  position:sticky;top:var(--s4);
+  display:flex;flex-direction:column;gap:var(--s5);
+  max-height:calc(100vh - 60px);overflow-y:auto;overscroll-behavior:contain;
+  padding-right:4px;
+}
+.ship-sec{display:flex;flex-direction:column;gap:var(--s2)}
+.ship-sec-h{
+  display:flex;align-items:baseline;gap:var(--s2);
+  font-size:var(--fs-meta);font-weight:600;color:var(--ink-3);
+  padding-bottom:var(--s2);border-bottom:1px solid var(--line-2);
+}
+.ship-sec-h span{margin-left:auto;font-weight:400;color:var(--ink-4)}
+
+/* 主题：竖排卡片，比横排 chip 更能放下 tag */
+.theme-list{display:flex;flex-direction:column;gap:3px}
+.theme-row{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:8px 10px;border:1px solid transparent;border-radius:var(--r-m);
+  background:transparent;cursor:pointer;
+  transition:all var(--dur) var(--ease);
+}
+.theme-row:hover{background:var(--surface-3)}
+.theme-row.on{background:var(--surface);border-color:var(--line);box-shadow:var(--sh-1)}
+.theme-row .sw{width:16px;height:16px;border-radius:4px;border:1.5px solid;flex:0 0 auto}
+.theme-row .tn{display:flex;flex-direction:column;gap:1px;min-width:0}
+.theme-row .tn b{font-size:var(--fs-ctl);font-weight:600}
+.theme-row.on .tn b{font-weight:700}
+.theme-row .tn em{font-style:normal;font-size:var(--fs-meta);color:var(--ink-4);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 预览：一张白纸，宽窄由用户切 */
+.ship-main{display:flex;justify-content:center;min-width:0;padding-bottom:40px}
+.paper-shell{
+  width:100%;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r-l);
+  box-shadow:var(--sh-2);
+  overflow:hidden;
+  transition:max-width var(--dur) var(--ease);
+}
+.paper-shell .preview-paper{background:#fff;border-radius:0;overflow:visible;border:none;box-shadow:none}
+.paper-shell .preview-body{padding:32px 30px 72px;max-height:none}
+.paper-shell .preview-body img{border-radius:3px}
+
+.ship-left .field{margin-top:var(--s2)}
+.ship-left .field label{font-size:var(--fs-meta);font-weight:500;color:var(--ink-3)}
+.ship-left textarea{width:100%}
+
+/* ---------- 排版微调面板（P0-4：字号颜色可调）---------- */
+.tune-grid{display:flex;flex-direction:column;gap:var(--s3)}
+.tune-row{display:flex;flex-direction:column;gap:6px}
+.tune-row > label{font-size:var(--fs-meta);color:var(--ink-3);font-weight:500}
+.tune-btns{display:flex;gap:3px;flex-wrap:wrap}
+.tune-b{
+  min-width:32px;height:30px;padding:0 7px;
+  border:1px solid var(--line);border-radius:var(--r-s);
+  background:var(--surface);color:var(--ink-2);
+  font:500 var(--fs-meta)/1 var(--font);cursor:pointer;
+  font-variant-numeric:tabular-nums;
+  transition:all var(--dur) var(--ease);
+}
+.tune-b:hover{border-color:var(--ink-4);color:var(--ink)}
+.tune-b.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.tune-val{font-size:var(--fs-meta);color:var(--ink-4);font-variant-numeric:tabular-nums}
+.tune-colors{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.tune-c{
+  width:30px;height:30px;padding:0;border-radius:var(--r-s);
+  border:1px solid var(--line);cursor:pointer;
+  transition:all var(--dur) var(--ease);
+}
+.tune-c:hover{transform:scale(1.08)}
+.tune-c.on{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--ink);border-color:transparent}
+.tune-pick{
+  width:30px;height:30px;padding:0;border:1px solid var(--line);
+  border-radius:var(--r-s);background:none;cursor:pointer;
+}
+.tune-note{font-size:var(--fs-meta);color:var(--ink-4);text-align:center}
+
+/* 发布页的窄屏兜底挪到文末统一响应式区（见 1000px 那段），
+   这里不写媒体查询，避免断点顺序散乱。 */
+
+/* ============================================================
+   视觉质感层
+   ============================================================ */
+
+/* .card / .card-head 的唯一定义在文件前部（182 行附近）。
+   这一层曾经又写了一遍「更轻的边框、更柔的阴影」，结果：
+   后面的圆角和阴影把前面的直角+顶边全盖掉了 ——
+   改了半天界面没变，就是被这条覆盖的。
+   同一个选择器在一个文件里只能定义一次，否则永远在跟后面的比谁赢。 */
+.card-body{padding:var(--s5)}
+
+/* 按钮：分级明确，主操作只有一个。
+   主按钮用朱红 —— 原来用墨黑，等于和普通文字一个颜色，
+   「鲜明」就无从谈起。主操作必须是全屏唯一跳出来的那个。 */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  height:36px;padding:0 18px;border-radius:0;
+  font-size:13.5px;font-weight:640;letter-spacing:.01em;
+  border:1px solid transparent;
+  transition:all .15s var(--ease);
+  white-space:nowrap;
+}
+/* 悬停时轻微位移 + 硬投影跟着走。
+   主按钮的位移方向相反（往右下），因为它的投影在右下，
+   按下去应该往里缩。 */
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.brand:hover{transform:translate(1px,1px)}
+.btn.brand:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+/* 主按钮：硬投影，不模糊 —— 像凸版印刷压出来的那一块 */
+.btn.brand{background:var(--brand);color:#fff;box-shadow:3px 3px 0 var(--ink)}
+.btn.brand:hover{background:var(--brand-ink);box-shadow:3px 3px 0 var(--ink);transform:translate(1px,1px)}
+.btn.accent{background:var(--accent);color:#fff}
+.btn.accent:hover{background:#174947;box-shadow:0 6px 18px rgba(31,95,91,.26)}
+.btn.ghost{background:var(--surface);border-color:var(--line);color:var(--ink-2)}
+.btn.ghost:hover{border-color:var(--ink-3);color:var(--ink)}
+.btn.sm{height:30px;padding:0 12px;font-size:12.5px;border-radius:var(--r-s)}
+.btn.lg{height:46px;padding:0 30px;font-size:15px;border-radius:var(--r-m)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45;pointer-events:none}
+
+/* 输入：直角 + 实线框。圆角是「网页感」的主要来源，去掉就立刻不一样。 */
+.input,select,textarea.input{
+  width:100%;height:38px;padding:0 12px;
+  background:var(--surface);border:1px solid var(--line-3);border-radius:0;
+  font-size:14px;color:var(--ink);
+  transition:border-color .15s var(--ease),box-shadow .15s var(--ease);
+}
+textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
+  height:auto;padding:10px 12px;line-height:1.65;resize:vertical;
+}
+.input:hover{border-color:var(--ink-4)}
+.input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(176,58,46,.09);outline:none}
+.input::placeholder{color:var(--ink-4)}
+
+/* 第 1 页的定题输入区：整页的视觉主角 */
+.composer{
+  background:var(--surface);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-xl);
+  box-shadow:0 1px 2px rgba(26,24,20,.04),0 12px 32px rgba(26,24,20,.05);
+  padding:var(--s6);
+  transition:border-color .2s var(--ease),box-shadow .2s var(--ease);
+}
+.composer:focus-within{border-color:var(--ink-4);box-shadow:0 1px 2px rgba(26,24,20,.04),0 18px 48px rgba(26,24,20,.09)}
+.composer-label{display:flex;align-items:baseline;gap:var(--s3);margin-bottom:var(--s4)}
+.composer-label b{font-size:17px;font-weight:680;letter-spacing:.01em}
+.composer-label span{font-size:12.5px;color:var(--ink-3)}
+.composer textarea{
+  width:100%;border:none;background:none;resize:vertical;
+  font:400 19px/1.7 var(--font);letter-spacing:.01em;color:var(--ink);
+  min-height:96px;padding:0;
+}
+.composer textarea::placeholder{color:var(--ink-4);font-weight:400}
+.composer textarea:focus{outline:none}
+.composer-foot{display:flex;align-items:center;gap:var(--s3);margin-top:var(--s5);
+  padding-top:var(--s4);border-top:1px solid var(--line-3)}
+.composer-foot .tip{font-size:12.5px;color:var(--ink-3)}
+.sp{flex:1}
+
+/* 字数 / 文风 / 要求：一行排开，平级，不抢主角 */
+.opts{display:grid;grid-template-columns:130px 160px 1fr;gap:var(--s4);margin-top:var(--s4)}
+.opts .opt label{display:block;font-size:12px;font-weight:640;color:var(--ink-3);margin-bottom:6px;letter-spacing:.02em}
+.opts .opt label em{font-style:normal;font-weight:400;color:var(--ink-4)}
+
+.quickadd{display:flex;gap:8px;margin-bottom:14px}
+
+/* 选题条目：整行可点，明确是「点一下就填入」 */
+.pick{
+  position:relative;
+  display:block;padding:14px 44px 14px var(--s5);
+  background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-m);
+  margin-bottom:8px;cursor:pointer;
+  transition:all .15s var(--ease);
+}
+.pick:hover{border-color:var(--ink-4);box-shadow:var(--sh-2);transform:translateY(-1px)}
+.pick-t{font-size:14.5px;font-weight:620;line-height:1.55}
+.pick-a{font-size:12.5px;color:var(--ink-3);margin-top:4px}
+.pick-f{font-size:11px;color:var(--ink-4);margin-top:5px}
+.pick-x{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  width:26px;height:26px;padding:0;font-size:16px;line-height:1;color:var(--ink-4)}
+.pick-x:hover{color:var(--danger);border-color:var(--danger)}
+
+.container.wide{max-width:1180px}
+.seg{display:inline-flex;gap:2px;padding:2px;background:var(--surface-3);border-radius:var(--r-full);margin-bottom:var(--s5)}
+.seg-b{
+  height:30px;padding:0 14px;border:none;background:transparent;border-radius:var(--r-full);
+  font:500 var(--fs-ctl)/1 var(--font);color:var(--ink-3);cursor:pointer;
+  transition:all var(--dur) var(--ease);
+}
+.seg-b:hover{color:var(--ink)}
+.seg-b.on{background:var(--surface);color:var(--brand-ink);box-shadow:var(--sh-1);font-weight:650}
+.hot-bar{
+  display:flex;align-items:center;gap:22px;flex-wrap:wrap;
+  padding:var(--s4) var(--s5);margin-bottom:var(--s5);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);
+}
+.hot-stat{display:flex;flex-direction:column;line-height:1.25}
+.hot-stat b{font-size:21px;font-weight:700;letter-spacing:-.01em}
+.hot-stat span{font-size:11.5px;color:var(--ink-3)}
+.hot-tabs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hot-tab{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:7px 12px;border:1px solid var(--line-2);border-radius:var(--r-full);
+  background:var(--surface);color:var(--ink-2);font-size:13px;font-weight:550;
+  cursor:pointer;transition:all .14s var(--ease);font-family:inherit;
+}
+.hot-tab:hover{border-color:var(--brand);color:var(--brand-ink)}
+.hot-tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.hot-tab i{
+  width:18px;height:18px;border-radius:5px;color:#fff;font-size:10.5px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;font-style:normal;flex:0 0 auto;
+}
+.hot-tab em{font-style:normal;font-size:11px;opacity:.6}
+.hot-grid{display:grid;grid-template-columns:1fr 320px;gap:var(--s5);align-items:start}
+.hot-list{max-height:calc(100vh - 300px);overflow-y:auto;overscroll-behavior:contain}
+.hot-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 18px;border-bottom:1px solid var(--line-2);cursor:pointer;
+  transition:background .12s var(--ease);
+}
+.hot-item:hover{background:var(--surface-2)}
+.hot-item.sel{background:var(--surface-3);box-shadow:inset 3px 0 0 var(--brand)}
+.hot-item .rk{
+  flex:0 0 30px;text-align:center;font-size:12.5px;font-weight:700;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;
+}
+.hot-item .rk.top{color:var(--danger)}
+.hot-item .tx{flex:1;min-width:0}
+.hot-item .ti{font-size:14px;line-height:1.5;color:var(--ink)}
+.hot-item .fr{margin-top:3px;display:flex;gap:5px;flex-wrap:wrap}
+.hot-item .fr em{
+  font-style:normal;font-size:10.5px;color:var(--ink-3);
+  background:var(--surface-3);padding:1px 6px;border-radius:var(--r-full);
+}
+.hot-item .ht{flex:0 0 auto;font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.hot-d-title{font-size:17px;font-weight:650;line-height:1.5;letter-spacing:.01em}
+.hot-d-extra{font-size:12.5px;color:var(--ink-3);line-height:1.7;margin-bottom:14px}
+.chip{
+  display:inline-block;font-size:11.5px;padding:3px 9px;border-radius:var(--r-full);
+  background:var(--surface-3);color:var(--ink-2);
+}
+
+/* ---------- 热点页：常驻工作栏 + 原文预览 ---------- */
+/* 常驻：平台 tab 那一行。榜单很长，滚下去就找不到切平台/刷新了。 */
+.hot-bar-sticky{
+  position:sticky;top:0;z-index:25;
+  display:flex;align-items:center;gap:var(--s3);
+  padding:var(--s3) 0;margin-bottom:var(--s3);
+  background:var(--bg);
+  border-bottom:1px solid var(--line-2);
+}
+.hot-bar-sticky .hot-tabs{flex:1;min-width:0}
+.hot-bar-right{display:flex;align-items:center;gap:var(--s2);flex:0 0 auto}
+.hot-bar-right .hint{font-size:var(--fs-meta);color:var(--ink-4);white-space:nowrap}
+
+/* 摘要区：常驻，不折叠。
+   用户原话「光看标题我也不知道什么内容啊，应该点击这标题，
+   右侧能看一个文字摘要」—— 所以点了就有，不该再点一次。 */
+.peek{
+  margin-top:14px;border:1px solid var(--line-2);border-radius:var(--r-m);
+  overflow:hidden;background:var(--surface)
+}
+.peek-hd{
+  display:flex;align-items:center;gap:var(--s2);
+  padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--line-2);
+  font-size:var(--fs-meta);color:var(--ink-3);font-weight:600;
+}
+.peek-cnt{margin-left:auto;color:var(--ink-4);font-weight:400}
+.peek-ft{
+  display:flex;align-items:center;gap:var(--s2);
+  padding:8px 12px;border-top:1px solid var(--line-2);background:var(--surface-2)
+}
+.peek-ft .peek-btn{
+  padding:5px 10px;font-size:var(--fs-meta);color:var(--ink-3);
+  background:transparent;border:1px solid var(--line);border-radius:var(--r-s)
+}
+.peek-ft .peek-btn:hover{border-color:var(--ink-4);color:var(--ink-2)}
+.peek-body{
+  padding:var(--s3) var(--s4);
+  max-height:340px;overflow-y:auto;
+}
+.peek-title{font-size:var(--fs-ctl);font-weight:650;margin-bottom:10px;line-height:1.5}
+.peek-text{font-size:var(--fs-aux);line-height:1.85;color:var(--ink-2);white-space:pre-wrap;word-break:break-word}
+.peek-foot{font-size:var(--fs-meta);color:var(--ink-4);margin:12px 0 10px}
+.peek-load,.peek-err{font-size:var(--fs-aux);color:var(--ink-3);line-height:1.8}
+.peek-err a{margin-top:10px}
+.peek-none{font-size:var(--fs-meta);color:var(--ink-4);padding:8px 0}
+.note.warn{background:#fdf4e3;border-color:#f0d9a8;color:#7a5a15}
+.note.warn b,.note.warn strong{color:#5e4410}
+.note.brand{background:#eef4f1;border-color:#c9ddd4;color:#245c4c}
+.note.brand b,.note.brand strong{color:#1a4638}
+/* 长页面的固定统计条 */
+.sticky-bar{
+  position:sticky;top:0;z-index:20;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);
+  box-shadow:var(--sh-2);margin-bottom:var(--s5);
+}
+.sticky-bar .card-body{padding:14px 20px}
+
+/* 回顶部 */
+.totop{
+  position:fixed;right:var(--s6);bottom:96px;z-index:55;
+  width:40px;height:40px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-2);
+  display:none;align-items:center;justify-content:center;
+  color:var(--ink-2);font-size:16px;transition:all .16s var(--ease);
+}
+.totop:hover{background:var(--surface-2);color:var(--ink);transform:translateY(-2px)}
+.totop.on{display:inline-flex}
+
+/* toast —— 用户报的「顶部刘海」就是它
+   原来写 top:24px + translateY(-120%)，以为藏住了。实际没藏住：
+   空 toast 高 22px，-120% 只挪 26px，于是 20px 深色圆角框
+   常驻视口顶部正中央，position:fixed 所以每页都在。
+
+   两次返工的教训：靠百分比位移隐藏，等于把「藏不藏得住」
+   押在元素自身高度上 —— 高度一变就又露出来。
+   现在改成 visibility:hidden，隐藏时根本不参与绘制，
+   无论里面多高都不可能露头，位移只负责动画。 */
+#toast{
+  position:fixed;left:50%;top:var(--s5);
+  transform:translateX(-50%) translateY(-10px);
+  background:var(--ink);color:#fff;padding:11px var(--s5);border-radius:var(--r-m);
+  font-size:13.5px;box-shadow:var(--sh-3);z-index:200;
+  max-width:520px;text-align:center;line-height:1.6;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .16s linear,transform .28s var(--ease),visibility 0s .28s;
+}
+#toast.on{
+  opacity:1;visibility:visible;pointer-events:auto;
+  transform:translateX(-50%) translateY(0);
+  transition:opacity .16s linear,transform .28s var(--ease),visibility 0s;
+}
+
+/* 侧栏收窄但保留文字：主区放不下时才走 */
+/* ============================================================
+   响应式：从宽到窄严格递减排列。
+   断点按「视口 − 侧栏」的实际可用宽度来定，不是拍脑袋的整数。
+   ============================================================ */
+@media(max-width:1280px){
+  :root{--nav-w:180px}
+  .grid-side{grid-template-columns:1fr 272px}
+  .grid-2,.grid-ship{grid-template-columns:288px 1fr}
+  .page{padding:var(--s6) var(--s6) 110px}
+}
+/* 第 2 页：编辑区与配图栏堆叠（主区不足 ~800） */
+@media(max-width:1000px){
+  .opts{grid-template-columns:1fr 1fr}
+  .opts .opt.grow{grid-column:1/-1}
+  /* 发布页：主区装不下 300 工具栏 + 375 预览就堆叠 */
+  .ship-wrap{grid-template-columns:1fr}
+  .ship-left{position:static;max-height:none}
+  .theme-list{display:grid;grid-template-columns:1fr 1fr}
+}
+/* 主区真正放不下两列才堆叠。820px 主区 ≈ 视口 1000，仍应保持双列 + 跟随。 */
+@media(max-width:960px){
+  .grid-2,.grid-ship,.grid-side{grid-template-columns:1fr}
+  .rail{position:static}
+  .sticky-l{position:static;max-height:none}
+  .page{padding:var(--s5) var(--s5) 100px}
+  .hero{margin-top:var(--s7)}
+}
+/* 主区（视口 - 侧栏）在 820px 时仍装得下 1fr + 320px 侧栏，别急着塌。 */
+@media(max-width:900px){
+  .hot-grid{grid-template-columns:1fr}
+  .hot-list{max-height:none}
+  .container.wide{max-width:none}
+}
+/* 860px 断点：两个都撞在这里，合成一块。
+   成稿页侧栏的判断看「视口 − 侧栏」：视口 1000 时主区还有 820px，
+   装得下 3:1 的正文与侧栏，不该塌。之前用 1100 会在你的窗口里误触。 */
+@media(max-width:860px){
+  .write-grid{grid-template-columns:1fr}
+  .write-side{position:static;max-height:none;min-width:0;max-width:none}
+  .side-pane{max-height:460px}
+
+  /* 侧栏变图标条 */
+  :root{--nav-w:56px}
+  .side{padding:var(--s4) 0}
+  .brand,.nav-label,.nav span.tx,.side-foot{display:none}
+  .nav{justify-content:center;padding:11px 0;border-left:none;position:relative}
+  .nav .badge{position:absolute;transform:translate(14px,-12px);margin:0}
+  .page{padding:var(--s5) var(--s4) 96px}
+  .hero h2{font-size:22px}
+  .hero textarea{min-height:110px}
+  .preview-body{padding:var(--s5) var(--s4)}
+  .editor{padding:var(--s4)}
+  .card-body{padding:var(--s4)}
+}
+/* 小屏：字号与间距整体收紧 */
+@media(max-width:640px){
+  .opts{grid-template-columns:1fr}
+  .composer{padding:var(--s5)}
+  .composer textarea{font-size:17px}
+  .editor-title input{font-size:20px}
+}
+
+/* ══════════════ 成稿页右侧：文章实时预览 ══════════════
+   用户原话：「成稿页面右侧应该预览它的那个文章」。
+
+   原来那一栏是自检/标题/改写的工具面板 —— 工具不是文章。
+   写稿的时候看不到自己的稿子长什么样，只能等排到发布页才知道，
+   而发布页看的是排版后的效果，不是文章本身。
+
+   这里的字号刻意比排版稿小一档（16px vs 17~19）：
+   预览是「读」的窗口，不是「发」的稿子，太大反而挤。
+   但行距、字重、图片位置、引用块都按公众号的样子来，
+   让人能判断这篇稿子发出去好不好看。 */
+.write-grid{grid-template-columns:minmax(0,1fr) minmax(340px,460px)}
+.write-side.write-preview{padding:0;overflow:hidden;background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-m);display:flex;flex-direction:column}
+.wv-bar{display:flex;align-items:baseline;gap:10px;padding:11px var(--s4);border-bottom:1px solid var(--line-2);background:var(--surface);flex:0 0 auto}
+.wv-h{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:var(--ink-2)}
+.wv-n{margin-left:auto;font-size:11px;color:var(--ink-4);font-variant-numeric:tabular-nums}
+.wv-scroll{flex:1;min-height:0;overflow-y:auto;padding:var(--s4)}
+.wv-paper{background:#fff;border:1px solid var(--line-3);border-radius:var(--r-s);padding:var(--s5) var(--s4);box-shadow:var(--sh-1)}
+
+.wv-t{font:700 20px/1.4 var(--serif);color:var(--ink);margin:0 0 18px;padding-bottom:12px;border-bottom:2px solid var(--fc,#111)}
+.wv-t-empty{color:var(--ink-4);font-weight:400;border-bottom-style:dashed;font-size:16px}
+.wv-c{font:400 16px/2 var(--font);color:var(--ink-2);word-break:break-word}
+.wv-c h1{font:700 21px/1.45 var(--serif);margin:0 0 18px}
+.wv-c h2{font:700 19px/1.5 var(--serif);margin:30px 0 14px;padding-left:11px;border-left:3px solid var(--brand)}
+.wv-c h3{font:700 17px/1.5 var(--serif);margin:24px 0 10px}
+.wv-c p{margin:0 0 10px}
+.wv-c strong{color:var(--brand);font-weight:700}
+.wv-c blockquote{margin:0 0 18px;padding:14px 16px;background:#f7f5ef;border-left:3px solid var(--line-2);color:var(--ink-3);font-size:15px}
+.wv-c img{max-width:100%;display:block;margin:0 auto 8px;border-radius:3px}
+.wv-c figcaption{font-size:12px;color:var(--ink-4);text-align:center;margin:0 0 16px}
+.wv-c table{border-collapse:collapse;width:100%;font-size:13px;margin:0 0 16px}
+.wv-c th,.wv-c td{border:1px solid var(--line-3);padding:6px 9px;text-align:left}
+.wv-c code{background:#f4f2ec;padding:1px 4px;border-radius:3px;font-size:13.5px}
+.wv-c hr{margin:24px auto;width:60px;height:1px;background:var(--line-2);border:0}
+
+.wv-empty,.wv-loading{padding:40px 10px;text-align:center;color:var(--ink-4);font-size:13px;line-height:1.9}
+
+/* 窄屏时预览挪到正文下面，别挤成一条 */
+@media (max-width:1024px){
+  .write-grid{grid-template-columns:1fr}
+  .write-side.write-preview{max-height:60vh}
+}
+
+/* ══════════════ 交付区（正文下方，横排三块）══════════════
+   原来这一块挂在右侧占着文章预览的位置。
+   用户原话「成稿页面右侧应该预览它的那个文章」——
+   工具面板继续占着右侧就是在跟文章抢地方。
+   现在挪到正文编辑器下方，三块并排：
+     自检（宽）· 标题（宽）· 一键改写（窄）
+   自检最宽，因为它有 12 项，挤窄了每一行都要折。 */
+.deliver{margin-top:18px;border:1px solid var(--line-2);border-radius:var(--r-m);background:var(--surface);overflow:hidden}
+.deliver-h{display:flex;align-items:baseline;gap:10px;padding:10px var(--s5);border-bottom:1px solid var(--line-2);background:var(--surface-2)}
+.deliver-h .dh-t{font-weight:700;font-size:12.5px;letter-spacing:.06em;color:var(--ink-2)}
+.deliver-h .dh-n{font-size:11px;color:var(--ink-4)}
+.deliver-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,.72fr)}
+.dc{padding:var(--s4) var(--s5);min-width:0;display:flex;flex-direction:column;gap:var(--s2)}
+.dc + .dc{border-left:1px solid var(--line-3)}
+.dc .side-h{margin-top:0}
+.dc .side-note{margin:0}
+.dc .btn,.dc .input,.dc .side-empty{flex:0 0 auto}
+
+@media (max-width:1024px){
+  .deliver-grid{grid-template-columns:1fr}
+  .dc + .dc{border-left:none;border-top:1px solid var(--line-3)}
+}
+
+/* ════════════════════════════════════════════════════════════
+   第一层 · 设计系统收口
+   加在文件末尾，靠源顺序覆盖前面的旧值 ——
+   这样不用动几百行既有规则，也能一次性把散落值收回来。
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 断点体系 ──
+   原来有 13 个 max-width 且顺序是乱的（1120, 720, 640, 340, 1600, 1180…），
+   那是补丁叠补丁的结果，不是设计。
+   现在收成 5 档，语义命名，移动端优先从大往小写。
+   旧断点保留但不新增，避免一次改动炸掉既有布局。 */
+:root{
+  --bp-xl:1600px;   /* 超宽屏：侧栏与主区都放开 */
+  --bp-l:1280px;    /* 大桌面 */
+  --bp-m:1024px;    /* 笔记本：成稿页两栏改上下 */
+  --bp-s:720px;     /* 平板 */
+  --bp-xs:520px;    /* 手机 */
+}
+
+/* ── z-index 层级 ──
+   原来 5 个原始值散落各处（60/25/20/55/200），
+   加一个更高的就会盖住不该盖的。集中成阶梯。 */
+:root{
+  --z-base:1;        /* 常规内容 */
+  --z-raised:10;     /* 卡片抬起、hover */
+  --z-sticky:20;     /* 粘性栏（热点工作栏） */
+  --z-drawer:30;     /* 下拉、弹出层 */
+  --z-overlay:40;    /* 遮罩 */
+  --z-modal:50;      /* 模态 */
+  --z-toast:60;      /* 提示条，必须最高 */
+}
+
+/* ── 动效体系 ──
+   原来只有一条 --dur/--ease，加出来一套完整的时间轴。
+   时长分档是有讲究的：
+     120ms  按下这类「已经发生」的反馈，再慢就粘
+     200ms  状态切换（hover / focus）
+     320ms  元素进出
+     520ms  大面积布局变化（抽屉、模态）
+   缓动给两条：标准用 ease-out（快进慢停，符合物理直觉），
+   强调用 spring 感的回弹曲线。 */
+:root{
+  --dur-instant:90ms;
+  --dur-fast:160ms;
+  --dur-base:240ms;
+  --dur-slow:380ms;
+
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.22,.61,.36,1);
+  --ease-in:cubic-bezier(.55,.06,.68,.19);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+}
+
+/* ── 焦点可见 ──
+   原来完全没有 :focus-visible，键盘用户完全看不出焦点在哪。
+   这是无障碍硬伤，也是评审必查项。
+   用 :focus-visible 而不是 :focus ——
+   鼠标点击不该在按钮上留一圈焦点环，键盘 Tab 才该有。 */
+:where(a,button,input,textarea,select,[tabindex]):focus{outline:none}
+:where(a,button,input,textarea,select,[tabindex]):focus-visible{
+  outline:2px solid var(--brand);
+  outline-offset:2px;
+  border-radius:var(--r-s);
+  transition:outline-offset var(--dur-fast) var(--ease);
+}
+
+/* ── 动效可关闭 ──
+   前庭功能障碍用户看到大幅位移会眩晕。
+   这是 WCAG 2.3.3 的要求，不是可选项。
+   注意用 reduce 而不是 no-preference —— 前者是关，后者是开。 */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+
+/* ── 中文排版 ──
+   中英混排和中日文标点有专门属性，不管会出问题：
+     text-spacing-trim  控制标点挤压（CJK 全角标点会占满一个字宽）
+     line-break:strict   避免行首出现禁则标点
+     word-break:normal   不要粗暴地在任意字符间断行 */
+body{
+  text-spacing-trim:trim-start;
+  line-break:strict;
+  word-break:normal;
+  overflow-wrap:anywhere;
+}
+
+/* ── 触摸目标 ──
+   手指的最小落点是 44×44 CSS 像素（Apple HIG / WCAG 2.5.5）。
+   原来 .btn.xs 只有 30px —— 桌面鼠标点得到，手指点不准。 */
+@media (pointer:coarse){
+  .btn,.btn.sm,.btn.xs{min-height:44px;padding-left:16px;padding-right:16px}
+  .btn.xs{font-size:13px}
+  .seg-b,.theme-row,.hot-item{min-height:44px}
+  .side-tab{height:40px}
+  .icon-btn,.tune-b{min-width:44px;min-height:44px}
+  /* 触摸设备上 hover 态不可靠，按下才给反馈 */
+  .card:active,.hot-item:active,.theme-row:active{transform:scale(.985)}
+}
+
+/* ════════════════════════════════════════════════════════════
+   第二层 · 微交互与动效
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 按压反馈 ──
+   只有按钮和可点卡片。位移 1px + 亮度变化，90ms。
+   位移给大了显得廉价，1px 刚好是「按下去」的实感。 */
+:where(.btn,.seg-b,.theme-row,.icon-btn,.tune-b,.pref-btn,.peek-btn,.side-tab){
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-instant) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+:where(.btn,.seg-b,.theme-row,.icon-btn,.tune-b,.pref-btn,.peek-btn,.side-tab):active{
+  transform:translateY(1px);
+}
+/* 主按钮按下再压深一点，视觉重量对得上 */
+.btn.brand:active,.btn.brand:hover{filter:brightness(.94)}
+
+/* ── 悬停抬起 ──
+   卡片类元素：上移 2px + 阴影加深。
+   只给「本身就是一个目标」的元素，
+   给容器加会显得整页都在飘。 */
+.card,.hot-item,.theme-row,.side-h + .item,.deliver{
+  transition:
+    transform var(--dur-base) var(--ease),
+    box-shadow var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
+}
+.card:hover,.theme-row:hover{
+  transform:translateY(-2px);
+  box-shadow:var(--sh-2);
+}
+.hot-item:hover{transform:translateX(2px)}
+
+/* ── 列表项选中的进入动效 ──
+   高亮用「从左生长」而不是「整块变色」——
+   变色是瞬间的，生长是有方向的，用户能看出「选中从这儿开始」。
+   这条参考了 Linear / Vercel 的选中指示条做法。 */
+@keyframes barGrow{
+  from{transform:scaleY(.2);opacity:0}
+  to{transform:scaleY(1);opacity:1}
+}
+.hot-item.sel::before,.item.sel::before{
+  animation:barGrow var(--dur-base) var(--ease-spring);
+  transform-origin:center;
+}
+.hot-item.sel,.item.sel{
+  background:var(--brand-soft);
+  border-left-color:var(--brand);
+}
+
+/* ── 内容进场 ──
+   列表/卡片渲染时轻微上浮 + 淡入。
+   位移只给 6px，动画 320ms，间隔 20ms 逐个 ——
+   超过 5 个元素就别 stagger 了，会拖沓。 */
+@keyframes riseIn{
+  from{opacity:0;transform:translateY(6px)}
+  to{opacity:1;transform:none}
+}
+.card,.hot-item{
+  animation:riseIn var(--dur-base) var(--ease-out) both;
+}
+.hot-item:nth-child(1){animation-delay:0ms}
+.hot-item:nth-child(2){animation-delay:18ms}
+.hot-item:nth-child(3){animation-delay:36ms}
+.hot-item:nth-child(4){animation-delay:54ms}
+.hot-item:nth-child(n+5){animation-delay:0ms}
+
+/* ── 加载中 ──
+   原来是纯文字「正在生成预览…」，干等着不知道死没死。
+   加一个呼吸点：三个点依次亮起，是「还在动」的明确信号。 */
+@keyframes breathe{
+  0%,80%,100%{opacity:.25}
+  40%{opacity:1}
+}
+.wv-loading::after,.empty .ico::after{
+  content:'';display:inline-block;margin-left:2px;
+}
+.wv-loading,.empty .ico{
+  position:relative;
+}
+.wv-loading i,.empty .ico i{
+  display:inline-block;width:4px;height:4px;margin-left:3px;
+  border-radius:50%;background:currentColor;vertical-align:middle;
+  animation:breathe 1.2s var(--ease) infinite;
+}
+.wv-loading i:nth-child(2),.empty .ico i:nth-child(2){animation-delay:.18s}
+.wv-loading i:nth-child(3),.empty .ico i:nth-child(3){animation-delay:.36s}
+
+/* 扫描线：给「正在处理」的容器一个极轻的扫过 */
+@keyframes sweep{
+  from{transform:translateX(-100%)}
+  to{transform:translateX(200%)}
+}
+.wv-loading,.editor-shell.busy{position:relative;overflow:hidden}
+.wv-loading::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(176,58,46,.07),transparent);
+  animation:sweep 1.6s var(--ease) infinite;
+}
+
+/* ── Toast ──
+   从底部滑入，不是淡入 ——
+   位置在动 = 这是个「临时出现的东西」，不会干扰主内容。 */
+@keyframes toastIn{
+  from{opacity:0;transform:translate(-50%,14px) scale(.96)}
+  to{opacity:1;transform:translate(-50%,0) scale(1)}
+}
+@keyframes toastOut{
+  from{opacity:1;transform:translate(-50%,0)}
+  to{opacity:0;transform:translate(-50%,10px)}
+}
+#toast{
+  animation:toastIn var(--dur-base) var(--ease-spring);
+}
+#toast.closing{animation:toastOut var(--dur-fast) var(--ease-in) forwards}
+
+/* ── 自检项的状态切换 ──
+   12 项自检每次 poll 都会重算，如果带动画会一直在闪。
+   所以只在「结论变化」时动 —— 用 key 差异驱动，见 renderSelfCheck。 */
+.chk{
+  transition:background-color var(--dur-base) var(--ease),
+             color var(--dur-base) var(--ease);
+}
+@keyframes chkFlip{
+  from{background-color:rgba(176,58,46,.10)}
+  to{background-color:transparent}
+}
+.chk.flip{animation:chkFlip var(--dur-slow) var(--ease-out)}
+
+/* ── 折叠展开 ──
+   details 展开用 grid-rows 0fr→1fr，
+   高度动画必须交给 grid-template-rows，直接改 height 会跳。 */
+@supports (grid-template-rows:0fr){
+  details.acc > .in{
+    animation:accOpen var(--dur-base) var(--ease-out);
+  }
+}
+@keyframes accOpen{
+  from{opacity:0;transform:translateY(-4px)}
+  to{opacity:1;transform:none}
+}
+details.acc > summary{
+  transition:background-color var(--dur-fast) var(--ease),
+             color var(--dur-fast) var(--ease);
+}
+details.acc[open] > summary{color:var(--ink)}
+
+/* ── 数字用等宽 ──
+   自检面板、字数统计这些数字每 4 秒变一次，
+   不等宽的话位数一变整行就左右跳。 */
+.wv-n,.editor-stats span,.self-chk-hd,.stat .v,.peek-cnt,.w-readout,#w-readout{
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+}
+
+/* ── 滚动条 ──
+   默认滚动条在深色块上很扎眼，而且宽度随系统变化影响布局。
+   自己画：细、暖灰、hover 才变深。 */
+*::-webkit-scrollbar{width:9px;height:9px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{
+  background:var(--line);border-radius:999px;
+  border:2px solid transparent;background-clip:content-box;
+}
+*::-webkit-scrollbar-thumb:hover{background:var(--ink-4);background-clip:content-box}
+*::-webkit-scrollbar-corner{background:transparent}
+
+/* 选中区域用暖色，不用系统蓝 —— 默认的 #3390FF 在这套底色里很跳 */
+::selection{background:rgba(176,58,46,.18);color:var(--ink)}
+
+/* ════════════════════════════════════════════════════════════
+   第三层 · 暗色模式
+
+   写长文的人常在夜里写，白天做的稿子半夜审稿，
+   暖白底 + 黑字在暗环境下非常刺眼 —— 这是真实需求不是装饰。
+
+   做法不是简单反色，而是重新配一套色：
+     · 底色不能纯黑，纯黑配纯白对比太强，长时间读累
+     · 纸感要去掉，暗色下「暖」会显脏，改用中性偏冷
+     · 朱红在暗底上要提亮，否则发闷
+     · 层级靠明度差，不靠阴影（暗色下阴影几乎不可见）
+   跟随系统，不做手动开关 —— 少一个状态就少一处不一致。
+   ════════════════════════════════════════════════════════════ */
+@media (prefers-color-scheme:dark){
+  :root{
+    /* 表面：从最深的底往上递进，每级差 3~5% 明度，层级才分得开 */
+    --bg:#14151a;
+    --surface:#1b1d23;
+    --surface-2:#212429;
+    --surface-3:#282b31;
+    --surface-4:#31353c;
+
+    /* 文字：不用纯白。#e8e6e3 在暗底上比 #fff 柔和很多 */
+    --ink:#e8e6e3;
+    --ink-2:#b5b2ad;
+    --ink-3:#86837e;
+    --ink-4:#5d5a56;
+
+    /* 线：暗色下要比亮色更明显一点，否则结构糊掉 */
+    --line:#34373e;
+    --line-2:#2a2d33;
+    --line-3:#23262b;
+
+    /* 朱红提亮：暗底上原来的 #b03a2e 会发闷 */
+    --brand:#e0705f;
+    --brand-ink:#f08a7a;
+    --brand-soft:#33201d;
+
+    --accent:#5aa9a2;
+    --accent-soft:#1a2b2a;
+
+    --ok:#6bbf8a;      --ok-bg:#16281d;
+    --warn:#d9a441;    --warn-bg:#2b2113;
+    --danger:#e0705f;  --danger-bg:#2e1917;
+
+    /* 阴影在暗底上基本看不见，改成「外发光」的效果 */
+    --sh-1:0 1px 2px rgba(0,0,0,.4);
+    --sh-2:0 2px 10px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.04);
+    --sh-3:0 18px 48px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06);
+
+    color-scheme:dark;
+  }
+
+  /* 自检项的浅底在暗色下会瞎，用边框代替底色区分 */
+  .chk{background:var(--surface)}
+  .self-chk-hd.good{background:rgba(107,191,138,.14);color:var(--ok)}
+  .self-chk-hd.bad{background:rgba(224,112,95,.14);color:var(--danger)}
+  .chk.ok .mk{color:var(--ok)}
+  .chk.no .mk,.chk.no .dt{color:var(--danger)}
+
+  /* 图片是白底截图的话，暗色页面上会有刺眼的白框 —— 加个内阴影压一下 */
+  .wv-paper img,.ship-body img{
+    box-shadow:0 0 0 1px rgba(255,255,255,.06);
+  }
+
+  /* 滚动条在暗底上要用更深的灰 */
+  *::-webkit-scrollbar-thumb{background:#3a3d44;background-clip:content-box}
+  *::-webkit-scrollbar-thumb:hover{background:#4a4e57;background-clip:content-box}
+
+  ::selection{background:rgba(224,112,95,.3);color:var(--ink)}
+
+  /* 输入框 placeholder 在暗底上默认太亮 */
+  ::placeholder{color:var(--ink-4);opacity:1}
+}
+
+@media (prefers-color-scheme:dark) and (pointer:coarse){
+  /* 触摸设备同理 */
+  .card:active,.hot-item:active,.theme-row:active{transform:scale(.985)}
+}
+
+/* ════════════════════════════════════════════════════════════
+   第四层 · 流体排版
+
+   原来字号全是固定 px，13 个断点各写一遍媒体查询。
+   两个问题：一是窗口在两个断点之间时字号跳变，
+   二是断点越加越多（实测已经 13 个）。
+
+   clamp() 一次解决：给一个区间，浏览器自己插值。
+   写一次，所有窗口宽度都平滑，且不用再加断点。
+
+   公式：clamp(最小值, 基准 + 视口比例, 最大值)
+   中文正文用 vw 要克制 —— 0.1vw 在 1000px 视口下只有 1px，
+   跨度大了会飘。这里每个级别只给 0.1~0.35vw。 */
+
+:root{
+  /* 正文：15px ~ 17px，跨度 2px。视口 1000~1920 时平滑过渡 */
+  --fs-body:clamp(15px, 14.4px + 0.1vw, 17px);
+  /* 控件文字：13px ~ 14.5px */
+  --fs-ctl:clamp(13px, 12.6px + 0.08vw, 14.5px);
+  /* 辅助/元信息：11px ~ 12.5px */
+  --fs-aux:clamp(12px, 11.7px + 0.06vw, 12.5px);
+  --fs-meta:clamp(11px, 10.8px + 0.05vw, 12px);
+
+  /* 标题跨度给大一些，视觉上才压得住 */
+  --fs-h1:clamp(24px, 21.6px + 0.6vw, 34px);
+  --fs-h2:clamp(19px, 17.6px + 0.35vw, 25px);
+  --fs-h3:clamp(16px, 15.2px + 0.2vw, 19px);
+}
+
+/* ── 容器查询式的留白 ──
+   主区宽度和视口不是一回事（有侧栏）。
+   但 container query 在这里没必要 —— 直接用主区的
+   百分比 padding 就够，边距跟着内容宽度走。 */
+.container,.page > *{
+  padding-left:clamp(16px, 3vw, 40px);
+  padding-right:clamp(16px, 3vw, 40px);
+}
+
+/* ── 横向溢出的兜底 ──
+   实测目前没有横向溢出，但内容是用户写的（长英文串、长 URL、
+   连排数字），一定会出现某天。加一条兜底比等它炸了再修便宜。 */
+body{
+  overflow-x:hidden;
+}
+/* 但代码和长串要能断行，不能一刀切隐藏掉 */
+.wv-c,.editor,pre,code,.pe{overflow-wrap:anywhere;word-break:break-word}

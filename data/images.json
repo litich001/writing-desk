@@ -1,0 +1,340 @@
+[
+  {
+    "id": "img01",
+    "file": "m9_official_kv.jpg",
+    "cap": "全新一代问界 M9 官方主视觉",
+    "src": "问界官网 hima.auto",
+    "risk": "中",
+    "note": "车企官方 KV，转载需申请。",
+    "at": "2026-09-29",
+    "url": "/data/images/m9_official_kv.jpg"
+  },
+  {
+    "id": "img02",
+    "file": "m9_cctv_1.jpg",
+    "cap": "5 月 27 日深圳发布会，官方建议零售价 47.98 万元起",
+    "src": "央视网",
+    "risk": "低",
+    "note": "新闻配图，注明出处通常可用。",
+    "at": "2026-09-29",
+    "url": "/data/images/m9_cctv_1.jpg"
+  },
+  {
+    "id": "img03",
+    "file": "m9_cctv_2.jpg",
+    "cap": "全新一代问界 M9 系列亮相",
+    "src": "央视网",
+    "risk": "低",
+    "note": "同上",
+    "at": "2026-09-29",
+    "url": "/data/images/m9_cctv_2.jpg"
+  },
+  {
+    "id": "img04",
+    "file": "m9_cctv_3.jpg",
+    "cap": "发布会现场交付环节",
+    "src": "央视网",
+    "risk": "低",
+    "note": "同上",
+    "at": "2026-09-29",
+    "url": "/data/images/m9_cctv_3.jpg"
+  },
+  {
+    "id": "img05",
+    "file": "m9_cctv_4.jpg",
+    "cap": "问界 M9 产品细节",
+    "src": "央视网",
+    "risk": "低",
+    "note": "同上",
+    "at": "2026-09-29",
+    "url": "/data/images/m9_cctv_4.jpg"
+  },
+  {
+    "id": "img06",
+    "file": "m9_cctv_5.jpg",
+    "cap": "M9 Ultimate 领世加长版，3785mm 轴距、3.2m² 纯平地板",
+    "src": "央视网",
+    "risk": "低",
+    "note": "数据图",
+    "at": "2026-09-29",
+    "url": "/data/images/m9_cctv_5.jpg"
+  },
+  {
+    "id": "img07",
+    "file": "m9_cctv_6.jpg",
+    "cap": "问界 M9 展厅交付实拍",
+    "src": "央视网",
+    "risk": "低",
+    "note": "同上",
+    "at": "2026-09-29",
+    "url": "/data/images/m9_cctv_6.jpg"
+  },
+  {
+    "id": "yb01",
+    "file": "yb_jigong.png",
+    "cap": "游本昌饰演济公",
+    "src": "澎湃新闻",
+    "risk": "低",
+    "note": "1985 年电视剧《济公》剧照。澎湃纪念稿配图。",
+    "at": "2026-09-29",
+    "url": "/data/images/yb_jigong.png"
+  },
+  {
+    "id": "yb02",
+    "file": "yb_1951.jpg",
+    "cap": "1951 年，18 岁加入南京文工团",
+    "src": "澎湃新闻",
+    "risk": "低",
+    "note": "配「52 岁之前没有名字」那段。",
+    "at": "2026-09-29",
+    "url": "/data/images/yb_1951.jpg"
+  },
+  {
+    "id": "yb03",
+    "file": "yb_yipu.jpg",
+    "cap": "话剧《一仆二主》中饰特鲁法儿金诺，获文化部表演一等奖",
+    "src": "澎湃新闻",
+    "risk": "低",
+    "note": "配「77 个龙套」那段，比数据更有力。",
+    "at": "2026-09-29",
+    "url": "/data/images/yb_yipu.jpg"
+  },
+  {
+    "id": "yb04",
+    "file": "yb_std.jpg",
+    "cap": "游本昌（1933.9.16—2026.9.24）",
+    "src": "澎湃新闻",
+    "risk": "低",
+    "note": "官方标准照，哀悼调性封面首选。",
+    "at": "2026-09-29",
+    "url": "/data/images/yb_std.jpg"
+  },
+  {
+    "id": "yb05",
+    "file": "yb_fanhua.jpg",
+    "cap": "电视剧《繁花》剧照",
+    "src": "澎湃新闻",
+    "risk": "低",
+    "note": "配「90 岁在片场追不上机位」那段。",
+    "at": "2026-09-29",
+    "url": "/data/images/yb_fanhua.jpg"
+  },
+  {
+    "id": "yb06",
+    "file": "yb_rudang.jpg",
+    "cap": "游本昌宣誓入党",
+    "src": "澎湃新闻",
+    "risk": "低",
+    "note": "配「九十二岁觉得自己不够格」那段。",
+    "at": "2026-09-29",
+    "url": "/data/images/yb_rudang.jpg"
+  },
+  {
+    "id": "yb07",
+    "file": "yb_92.jpg",
+    "cap": "92 岁的游本昌宣布参与微短剧拍摄",
+    "src": "澎湃新闻",
+    "risk": "低",
+    "note": "配「还在尝试新东西」那段。",
+    "at": "2026-09-29",
+    "url": "/data/images/yb_92.jpg"
+  },
+  {
+    "id": "yb08",
+    "file": "yb_fanhua2.jpg",
+    "cap": "《繁花》剧照",
+    "src": "澎湃新闻",
+    "risk": "低",
+    "note": "备选角度。",
+    "at": "2026-09-29",
+    "url": "/data/images/yb_fanhua2.jpg"
+  },
+  {
+    "id": "gf01",
+    "file": "gf_1.png",
+    "cap": "隆基绿能总部大楼",
+    "src": "新浪财经",
+    "risk": "低",
+    "note": "隆基两年裁 4.2 万人那条配图。",
+    "at": "2026-09-29",
+    "url": "/data/images/gf_1.png"
+  },
+  {
+    "id": "gf02",
+    "file": "gf_2.jpg",
+    "cap": "光伏产业链相关企业现场",
+    "src": "新浪财经",
+    "risk": "低",
+    "note": "新浪财经《每天亏 14000 万》配图。",
+    "at": "2026-09-29",
+    "url": "/data/images/gf_2.jpg"
+  },
+  {
+    "id": "gf03",
+    "file": "gf_3.jpg",
+    "cap": "光伏主产业链企业",
+    "src": "新浪财经",
+    "risk": "低",
+    "note": "同上",
+    "at": "2026-09-29",
+    "url": "/data/images/gf_3.jpg"
+  },
+  {
+    "id": "gf04",
+    "file": "gf_4.png",
+    "cap": "光伏组件与产能",
+    "src": "新浪财经",
+    "risk": "低",
+    "note": "同上",
+    "at": "2026-09-29",
+    "url": "/data/images/gf_4.png"
+  },
+  {
+    "id": "munnhqk5_0",
+    "file": "xhw_munnhqk2_0.jpg",
+    "cap": "2月23日，王曼昱在颁奖仪式上与奖杯合影",
+    "src": "新华网",
+    "url": "/data/images/xhw_munnhqk2_0.jpg",
+    "risk": "低",
+    "at": "2026-09-30T05:14:20.981Z"
+  },
+  {
+    "id": "munnhqv7_1",
+    "file": "xhw_munnhqv4_1.jpg",
+    "cap": "2月23日，王曼昱在颁奖仪式上与奖杯合影",
+    "src": "新华网",
+    "url": "/data/images/xhw_munnhqv4_1.jpg",
+    "risk": "低",
+    "at": "2026-09-30T05:14:21.379Z"
+  },
+  {
+    "id": "img_yb_munxins30",
+    "file": "yb_游本昌晚年影像_me5y.jpg",
+    "cap": "游本昌晚年影像",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E6%99%9A%E5%B9%B4%E5%BD%B1%E5%83%8F_me5y.jpg"
+  },
+  {
+    "id": "img_yb_munxinye1",
+    "file": "yb_游本昌生平资料图_dp4e.jpg",
+    "cap": "游本昌 生平资料图",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E7%94%9F%E5%B9%B3%E8%B5%84%E6%96%99%E5%9B%BE_dp4e.jpg"
+  },
+  {
+    "id": "img_yb_munxio3x2",
+    "file": "yb_游本昌资料图_6z9a.jpg",
+    "cap": "游本昌 资料图",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E8%B5%84%E6%96%99%E5%9B%BE_6z9a.jpg"
+  },
+  {
+    "id": "img_yb_munxioa53",
+    "file": "yb_游本昌资料图_bqlb.jpg",
+    "cap": "游本昌 资料图",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E8%B5%84%E6%96%99%E5%9B%BE_bqlb.jpg"
+  },
+  {
+    "id": "img_yb_munxiojl4",
+    "file": "yb_游本昌资料图_k1vu.jpg",
+    "cap": "游本昌 资料图",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E8%B5%84%E6%96%99%E5%9B%BE_k1vu.jpg"
+  },
+  {
+    "id": "img_yb_munxioqd5",
+    "file": "yb_游本昌资料图_y5r4.jpg",
+    "cap": "游本昌 资料图",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E8%B5%84%E6%96%99%E5%9B%BE_y5r4.jpg"
+  },
+  {
+    "id": "img_yb_munxioxn6",
+    "file": "yb_游本昌资料图_aa8m.jpg",
+    "cap": "游本昌 资料图",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E8%B5%84%E6%96%99%E5%9B%BE_aa8m.jpg"
+  },
+  {
+    "id": "img_yb_munxip2m7",
+    "file": "yb_游本昌资料图_yyuf.jpg",
+    "cap": "游本昌 资料图",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E8%B5%84%E6%96%99%E5%9B%BE_yyuf.jpg"
+  },
+  {
+    "id": "img_yb_munxisn78",
+    "file": "yb_游本昌资料图_ujat.jpg",
+    "cap": "游本昌 资料图",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E8%B5%84%E6%96%99%E5%9B%BE_ujat.jpg"
+  },
+  {
+    "id": "img_yb_munxiswe9",
+    "file": "yb_游本昌资料图_n1ob.jpg",
+    "cap": "游本昌 资料图",
+    "topic": "游本昌",
+    "risk": "中",
+    "at": "2026-09-30 09:55",
+    "url": "/data/images/yb_%E6%B8%B8%E6%9C%AC%E6%98%8C%E8%B5%84%E6%96%99%E5%9B%BE_n1ob.jpg"
+  },
+  {
+    "id": "gmuo6vn0p.jpg",
+    "file": "jz_muo6vmne_0.jpg",
+    "cap": "澎湃漫评｜“一年举报1520次”就该及时叫停_澎湃评论_澎湃新闻-The Pap",
+    "src": "www.thepaper.cn",
+    "risk": "未评估",
+    "url": "/data/images/jz_muo6vmne_0.jpg",
+    "pageUrl": "https://www.thepaper.cn/newsDetail_forward_34171996",
+    "at": "2026-09-30T14:17:02.279Z"
+  },
+  {
+    "id": "gmuo6vn0p.png",
+    "file": "jz_muo6vn0k_2.png",
+    "cap": "澎湃漫评｜“一年举报1520次”就该及时叫停_澎湃评论_澎湃新闻-The Pap",
+    "src": "www.thepaper.cn",
+    "risk": "未评估",
+    "url": "/data/images/jz_muo6vn0k_2.png",
+    "pageUrl": "https://www.thepaper.cn/newsDetail_forward_34171996",
+    "at": "2026-09-30T14:17:02.279Z"
+  },
+  {
+    "id": "gmuqxrawo.png",
+    "file": "jz_muqxrary_1.png",
+    "cap": "女子退休前夕查出癌症，花光积蓄去南极旅游，回来肿瘤竟变小了；十几年走遍30多国拍",
+    "src": "news.qq.com",
+    "risk": "未评估",
+    "url": "/data/images/jz_muqxrary_1.png",
+    "pageUrl": "https://news.qq.com/rain/a/20261002A053PX00",
+    "at": "2026-10-02T12:25:01.938Z"
+  },
+  {
+    "id": "gmuqxrawo.png",
+    "file": "jz_muqxrawf_2.png",
+    "cap": "女子退休前夕查出癌症，花光积蓄去南极旅游，回来肿瘤竟变小了；十几年走遍30多国拍",
+    "src": "news.qq.com",
+    "risk": "未评估",
+    "url": "/data/images/jz_muqxrawf_2.png",
+    "pageUrl": "https://news.qq.com/rain/a/20261002A053PX00",
+    "at": "2026-10-02T12:25:01.938Z"
+  }
+]

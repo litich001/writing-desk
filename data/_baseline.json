@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-30T09:57:15.419Z",
+  "body": {
+    "chars": 5335,
+    "paragraphs": 131,
+    "imageRefs": 4,
+    "headings": 11,
+    "hash": "123mc7"
+  },
+  "project": {
+    "title": "「济公」火的那一年，他闲了二十年",
+    "hasAbstract": true,
+    "hasFoot": true,
+    "abstractLen": 72,
+    "abstractHash": "e1ret7",
+    "footLen": 34,
+    "footHash": "185e3r6",
+    "tpl": "voice",
+    "optKeys": "ac,fc,fs,lh"
+  },
+  "images": {
+    "count": 31,
+    "files": "gf_1.png|gf_2.jpg|gf_3.jpg|gf_4.png|m9_cctv_1.jpg|m9_cctv_2.jpg|m9_cctv_3.jpg|m9_cctv_4.jpg|m9_cctv_5.jpg|m9_cctv_6.jpg|m9_official_kv.jpg|xhw_munnhqk2_0.jpg|xhw_munnhqv4_1.jpg|yb_1951.jpg|yb_92.jpg|yb_fanhua.jpg|yb_fanhua2.jpg|yb_jigong.png|yb_rudang.jpg|yb_std.jpg|yb_yipu.jpg|yb_游本昌晚年影像_me5y.jpg|yb_游本昌生平资料图_dp4e.jpg|yb_游本昌资料图_6z9a.jpg|yb_游本昌资料图_aa8m.jpg|yb_游本昌资料图_bqlb.jpg|yb_游本昌资料图_k1vu.jpg|yb_游本昌资料图_n1ob.jpg|yb_游本昌资料图_ujat.jpg|yb_游本昌资料图_y5r4.jpg|yb_游本昌资料图_yyuf.jpg"
+  }
+}

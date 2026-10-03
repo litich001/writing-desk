@@ -1,0 +1,30 @@
+{
+  "name": "xiezuotai",
+  "version": "5.0.0",
+  "description": "本地公众号写作工作台：选题→定题→成稿→配图→排版发布",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "restart": "node engine/restart.mjs",
+    "test": "node 验收测试.js",
+    "test:layout": "node 布局体检.js",
+    "test:extract": "node engine/extract-test.mjs",
+    "test:style": "node engine/style-test.mjs",
+    "test:baseline": "node 回归基线.js",
+    "hot": "node engine/hot.mjs",
+    "hot:json": "node engine/hot-cli.mjs --json --flat",
+    "stamp": "node engine/stamp.mjs",
+    "check": "node 验收测试.js && node 布局体检.js && node engine/layout.mjs && node engine/extract-test.mjs && node engine/style-test.mjs"
+  },
+  "bin": {
+    "hot-cli": "engine/hot-cli.mjs"
+  },
+  "dependencies": {
+    "markdown-it": "^15.0.2",
+    "markdown-it-footnote": "^4.0.0"
+  }
+}

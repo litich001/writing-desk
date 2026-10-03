@@ -1,0 +1,15 @@
+node_modules/
+data/queue/
+data/t_*.json
+data/images/*.png
+data/images/*.jpg
+data/*.bak
+*.log
+.DS_Store
+
+# 注意：data/project.json、body.md、facts.json 默认是入库的，
+# 因为它们是这个项目的一部分（当前稿件 + 事实清单）。
+# 如果不想把稿件传到公网，把下面三行取消注释：
+# data/project.json
+# data/body.md
+# data/facts.json
