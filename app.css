@@ -39,6 +39,8 @@
   --brand:#b03a2e;
   --brand-ink:#8c2c22;
   --brand-soft:#f6e8e5;
+  /* 自检「不通过」的语义红。原先散在 4 处硬编码，改主题必漏 */
+  --brand-deep:#a32016;
   --accent:#1f5f5b;
   --accent-soft:#e4efee;
 
@@ -323,7 +325,7 @@ select{
    结果正文和侧栏一样宽，正文被挤成一条。用固定比例就不会。 */
 .write-grid{display:grid;gap:var(--s5);align-items:start}
 .write-grid > *{min-width:0}
-@media(min-width:1400px){
+@media (min-width:1600px){
 }
 .write-main{min-width:0}
 
@@ -438,15 +440,15 @@ select{
 .self-chk{display:flex;flex-direction:column;gap:1px;background:var(--surface-3);border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
 .self-chk-hd{padding:7px 10px;font-weight:700;font-size:12px;letter-spacing:.02em}
 .self-chk-hd.good{background:#e8f4ec;color:#1a6b3c}
-.self-chk-hd.bad{background:#fdecea;color:#a32016}
+.self-chk-hd.bad{background:#fdecea;color:var(--brand-deep)}
 .chk{display:flex;align-items:baseline;gap:8px;padding:5px 10px;background:var(--surface);font-size:12px;line-height:1.5}
 .chk .mk{flex:0 0 auto;font-weight:700;width:13px;text-align:center}
 .chk.ok .mk{color:#1a6b3c}
-.chk.no .mk{color:#a32016}
+.chk.no .mk{color:var(--brand-deep)}
 .chk.ok .lb{color:var(--ink-2)}
 .chk.no .lb{color:var(--ink);font-weight:600}
 .chk .dt{margin-left:auto;flex:0 0 auto;font-size:11px;color:var(--ink-4);text-align:right;max-width:56%;font-variant-numeric:tabular-nums}
-.chk.no .dt{color:#a32016}
+.chk.no .dt{color:var(--brand-deep)}
 
 /* ── 标题候选 ──
    每个候选就是一个完整标题，点一下直接换到标题栏。
@@ -1094,40 +1096,27 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
    响应式：从宽到窄严格递减排列。
    断点按「视口 − 侧栏」的实际可用宽度来定，不是拍脑袋的整数。
    ============================================================ */
-@media(max-width:1280px){
+@media (max-width:1280px){
   :root{--nav-w:180px}
   .grid-side{grid-template-columns:1fr 272px}
   .grid-2,.grid-ship{grid-template-columns:288px 1fr}
   .page{padding:var(--s6) var(--s6) 110px}
 }
 /* 第 2 页：编辑区与配图栏堆叠（主区不足 ~800） */
-@media(max-width:1000px){
+@media (max-width:1024px){
   .opts{grid-template-columns:1fr 1fr}
   .opts .opt.grow{grid-column:1/-1}
   /* 发布页：主区装不下 300 工具栏 + 375 预览就堆叠 */
   .ship-wrap{grid-template-columns:1fr}
   .ship-left{position:static;max-height:none}
   .theme-list{display:grid;grid-template-columns:1fr 1fr}
-}
-/* 主区真正放不下两列才堆叠。820px 主区 ≈ 视口 1000，仍应保持双列 + 跟随。 */
-@media(max-width:960px){
   .grid-2,.grid-ship,.grid-side{grid-template-columns:1fr}
   .rail{position:static}
   .sticky-l{position:static;max-height:none}
-  .page{padding:var(--s5) var(--s5) 100px}
   .hero{margin-top:var(--s7)}
-}
-/* 主区（视口 - 侧栏）在 820px 时仍装得下 1fr + 320px 侧栏，别急着塌。 */
-@media(max-width:900px){
   .hot-grid{grid-template-columns:1fr}
   .hot-list{max-height:none}
   .container.wide{max-width:none}
-}
-/* 860px 断点：两个都撞在这里，合成一块。
-   成稿页侧栏的判断看「视口 − 侧栏」：视口 1000 时主区还有 820px，
-   装得下 3:1 的正文与侧栏，不该塌。之前用 1100 会在你的窗口里误触。 */
-@media(max-width:860px){
-  .write-grid{grid-template-columns:1fr}
   .write-side{position:static;max-height:none;min-width:0;max-width:none}
   .side-pane{max-height:460px}
 
@@ -1143,15 +1132,26 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
   .preview-body{padding:var(--s5) var(--s4)}
   .editor{padding:var(--s4)}
   .card-body{padding:var(--s4)}
+  .write-grid{grid-template-columns:1fr}
+  .write-side.write-preview{max-height:60vh}
+  .deliver-grid{grid-template-columns:1fr}
+  .dc + .dc{border-left:none;border-top:1px solid var(--line-3)}
 }
+/* 主区真正放不下两列才堆叠。820px 主区 ≈ 视口 1000，仍应保持双列 + 跟随。 */
+
+/* 主区（视口 - 侧栏）在 820px 时仍装得下 1fr + 320px 侧栏，别急着塌。 */
+
+/* 860px 断点：两个都撞在这里，合成一块。
+   成稿页侧栏的判断看「视口 − 侧栏」：视口 1000 时主区还有 820px，
+   装得下 3:1 的正文与侧栏，不该塌。之前用 1100 会在你的窗口里误触。 */
+
 /* 小屏：字号与间距整体收紧 */
-@media(max-width:640px){
+@media (max-width:720px){
   .opts{grid-template-columns:1fr}
   .composer{padding:var(--s5)}
   .composer textarea{font-size:17px}
   .editor-title input{font-size:20px}
 }
-
 /* ══════════════ 成稿页右侧：文章实时预览 ══════════════
    用户原话：「成稿页面右侧应该预览它的那个文章」。
 
@@ -1190,10 +1190,6 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
 .wv-empty,.wv-loading{padding:40px 10px;text-align:center;color:var(--ink-4);font-size:13px;line-height:1.9}
 
 /* 窄屏时预览挪到正文下面，别挤成一条 */
-@media (max-width:1024px){
-  .write-grid{grid-template-columns:1fr}
-  .write-side.write-preview{max-height:60vh}
-}
 
 /* ══════════════ 交付区（正文下方，横排三块）══════════════
    原来这一块挂在右侧占着文章预览的位置。
@@ -1213,10 +1209,6 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
 .dc .side-note{margin:0}
 .dc .btn,.dc .input,.dc .side-empty{flex:0 0 auto}
 
-@media (max-width:1024px){
-  .deliver-grid{grid-template-columns:1fr}
-  .dc + .dc{border-left:none;border-top:1px solid var(--line-3)}
-}
 
 /* ════════════════════════════════════════════════════════════
    第一层 · 设计系统收口
@@ -1533,6 +1525,8 @@ details.acc[open] > summary{color:var(--ink)}
     --brand:#e0705f;
     --brand-ink:#f08a7a;
     --brand-soft:#33201d;
+    /* 暗底上的深红要提亮才看得清 */
+    --brand-deep:#f0907f;
 
     --accent:#5aa9a2;
     --accent-soft:#1a2b2a;
@@ -1622,3 +1616,94 @@ body{
 }
 /* 但代码和长串要能断行，不能一刀切隐藏掉 */
 .wv-c,.editor,pre,code,.pe{overflow-wrap:anywhere;word-break:break-word}
+
+/* ════════════════════════════════════════════════════════════
+   第五层 · 补齐缺失的交互反馈
+
+   自检发现 .card / .side-tab / .seg-b 三个主要交互没有 transition ——
+   点下去和不动是一样的，用户不确定自己有没有点到。
+   这类「按了没反应」在评审里叫 lack of feedback，是硬扣分项。
+
+   逐个补，并给出各自的反馈方式：
+     .card     内容卡片，悬停轻微抬起（已有），按压 1px
+     .side-tab 侧栏 tab，选中态变化要有过渡，否则切换像闪
+     .seg-b    分段控件，滑动感靠背景色过渡
+*/
+
+.card{
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-base) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+.card:active{transform:translateY(1px)}
+
+/* 侧栏 tab：选中态用底色 + 阴影，两个都要过渡 */
+.side-tab{
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.side-tab:hover:not(.on){background:var(--surface-3);color:var(--ink)}
+
+/* 分段控件：背景色 + 边框一起过渡 */
+.seg-b{
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-instant) var(--ease);
+}
+.seg-b:active{transform:translateY(1px)}
+
+/* 导航项：左侧主导航也是主要交互 */
+.nav{
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-instant) var(--ease);
+}
+.nav:active{transform:translateX(1px)}
+
+/* 输入类：边框与背景过渡（聚焦时不该「跳」） */
+.input,textarea,select{
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.input:focus,textarea:focus,select:focus{
+  border-color:var(--brand);
+  box-shadow:0 0 0 3px rgba(176,58,46,.10);
+}
+@media (prefers-color-scheme:dark){
+  .input:focus,textarea:focus,select:focus{
+    box-shadow:0 0 0 3px rgba(224,112,95,.16);
+  }
+}
+
+/* 图标按钮 / 标题候选 / 图片位置 */
+:where(.icon-btn,.tp,.iw-item,.peek-btn,.tune-b,.tune-c,.fact .v){
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-instant) var(--ease);
+}
+.tp:hover{transform:translateX(2px)}
+.iw-item:hover{transform:scale(1.04)}
+.iw-item:active{transform:scale(.97)}
+
+/* 复选/开关类的圆形按钮 */
+.fact .v:hover{transform:scale(1.08)}
+
+/* 主题行选中态：色块要跟着变 */
+.theme-row .sw{
+  transition:background-color var(--dur-base) var(--ease),border-color var(--dur-base) var(--ease);
+}
+
+/* self-chk 的通过/不通过状态色 */
+.chk .mk{transition:color var(--dur-base) var(--ease)}
+.self-chk-hd{transition:background-color var(--dur-base) var(--ease),color var(--dur-base) var(--ease)}

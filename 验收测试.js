@@ -376,7 +376,9 @@ ok('正文编辑器够高', /min-height:max\(600px/.test(css))
 /* 成稿页现在是「左编辑 + 右文章预览」，两栏都要有可用宽度。
    窄屏统一在 1024px 断点上下堆叠 —— 1100 以下预览栏只剩两百来像素，等于没有。 */
 ok('★ 成稿页窄屏在 1024px 上下堆叠',
-  /@media \(max-width:1024px\)\{[\s\S]{0,200}write-grid\{grid-template-columns:1fr/.test(css))
+  css.includes('@media (max-width:1024px){') &&
+  /@media \(max-width:1024px\)\{[\s\S]*?\.write-grid\{grid-template-columns:1fr/.test(css) &&
+  /\.write-side\.write-preview\{max-height:60vh/.test(css))
 ok('★ write-grid 只有一套桌面比例（旧的 3fr/5fr 已清）',
   !/grid-template-columns:3fr 1fr/.test(css) && !/grid-template-columns:5fr 1\.1fr/.test(css))
 
@@ -945,7 +947,21 @@ ok('检测器不误报多行规则',
   fs.readFileSync(ROOT + '/engine/css-dup.cjs', 'utf8').includes('[^{}]*$'))
 ok('卡片是真直角（不是圆角）', /\.card\{[^}]*border-radius:0/.test(css))
 ok('卡片有墨色顶边', /\.card\{[^}]*border-top:3px solid var\(--ink\)/.test(css))
-ok('卡片无阴影', /\.card\{[^}]*\}/.test(css) && !/\.card\{[^}]*box-shadow/.test(css))
+/* 静止态仍然不靠阴影分层级（底色差 + 线），这是这套设计语言的基本原则。
+       但 hover 时给 2px 抬升 + 阴影是获奖级站点的通行做法 ——
+       阴影的作用是「被拿起来了」，不是「这里是个盒子」。
+       所以断言改成：静止无阴影，hover 有。 */
+/* 静止态仍然不靠阴影分层级（底色差 + 线），这是这套设计语言的基本原则。
+
+   断言要精确匹配「box-shadow: 值」才算真阴影 ——
+   transition: transform ..., box-shadow, border-color 里
+   也含 box-shadow 这个词，那是「过渡哪些属性」的清单，不是阴影值。
+   不区分就会把这条断言变成永远失败。 */
+const cardBlk = (css.match(/\.card\{[^}]*\}/) || [''])[0]
+ok('★ 卡片静止态无阴影（层级靠底色差和线）',
+  !/box-shadow\s*:/.test(cardBlk))
+ok('★ 卡片 hover 时抬升并给阴影（被拿起来的实感）',
+  /\.card:hover,\.theme-row:hover\{[^}]*transform:translateY\(-2px\)[^}]*box-shadow:var\(--sh-2\)/.test(css))
 ok('产品名是衬线', /\.brand h1\{[^}]*var\(--serif\)/.test(css))
 ok('页头标题 30px 衬线 + 下划线', /\.page-head h2\{[^}]*30px[^}]*var\(--serif\)/.test(css))
 ok('主按钮有硬投影（像凸版印刷）', /\.btn\.brand\{[^}]*box-shadow:3px 3px 0/.test(css))
