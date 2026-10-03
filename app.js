@@ -1194,68 +1194,85 @@ function renderWrite() {
   el.innerHTML = `
   <div class="container full">
     <div class="write-grid">
-      <div class="write-main">
-        <div class="editor-shell">
-          <div class="editor-top">
-            <input id="etitle" placeholder="文章标题" value="${esc(S.project.title || '')}">
-          </div>
-          <div class="editor-stats">
-            <span>${chars} 字</span><span>${heads} 标题</span><span>${imgs} 图</span>
-            ${usedN < bank.length ? `<span style="color:var(--ink-4)">图库 ${usedN}/${bank.length} 已用</span>` : ''}
-            ${un ? `<span style="color:var(--warn)">${un} 待核${unHi ? '（高危 ' + unHi + '）' : ''}</span>` : ''}
-            ${a ? `<span style="color:${a.ai >= 75 ? 'var(--ok)' : a.ai >= 55 ? 'var(--warn)' : 'var(--danger)'}">AI 味 ${a.ai}</span>` : ''}
-          </div>
+    <div class="write-main">
 
-          ${orphan.length ? `<div class="note warn" style="margin:0 var(--s5) var(--s3)">正文引用了 ${orphan.length} 个不存在的图片文件，发布时会丢图。</div>` : ''}
-
-          <!-- 单框编辑：Markdown 源码直接改。
-               之前拆成「阅读/编辑」两套，用户反馈「怪怪的、复杂」——
-               其实就是一个文框，不该分家。排版效果在下一页「发布」看。 -->
-          <textarea class="editor" id="body" placeholder="正文。AI 写好会自动落进来。&#10;&#10;加粗用 **文字**，图片写一行 ![图注](文件名)。">${esc(b)}</textarea>
-          <!-- 图片在正文里的位置：点一下换图/看大图，不占地方 -->
-          ${imgs ? `<div class="img-where">
-            <div class="iw-h">正文里的图<span>${imgs} 张 · 点缩略图可换图</span></div>
-            <div class="iw-row">
-              ${bodyImages().map((f, i) => `<button class="iw-item" data-act="imgWhere" data-arg="${i}"
-                title="${esc(f)}">
-                <img src="/data/images/${encodeURIComponent(f)}" alt="" loading="lazy">
-                <span class="n">${i + 1}</span>
-              </button>`).join('')}
-            </div>
-          </div>` : ''}
-          <div class="editor-bar">
-            <button class="btn ghost sm" data-act="stash">存一版</button>
-            <button class="btn ghost sm" data-act="copyBody">复制全文</button>
-            <button class="btn ghost sm" data-act="toggleLib">${libOpen ? '收起图库' : '打开图库'}</button>
-            <span class="sp"></span>
-            <button class="btn brand sm" data-go="ship">下一步 · 排版发布</button>
-          </div>
-          <!-- 图库：默认收起。要换图/加图才展开，平时不占地方 -->
-          ${libOpen ? `<div class="lib">
-            <div class="lib-h">图库<span>${bank.length} 张 · 已用 ${usedN}</span></div>
-            <div class="lib-actions">
-              <button class="btn brand sm" data-act="findImg">让 AI 找图</button>
-              <button class="btn ghost sm" data-act="suggestImg">推荐插入位置</button>
-              <input class="input xs" id="imgurl" placeholder="或贴图片直链" style="flex:1">
-              <button class="btn ghost sm" data-act="fetchImg">抓取</button>
-              <span class="drop-hint" id="drop">拖图 / Ctrl+V 贴图</span>
-            </div>
-            <div class="lib-row">
-              ${bank.map(im => `<div class="lib-item ${refs.has(im.file) ? 'used' : ''}" data-file="${esc(im.file)}">
-                <div class="pic" data-act="insertImg" data-arg="${im.id}" title="插入正文">
-                  <img src="${esc(im.url || '/data/images/' + encodeURIComponent(im.file))}" alt="" loading="lazy">
-                  ${refs.has(im.file) ? '<span class="ok">已用</span>' : ''}
-                </div>
-                <input class="input xs" value="${esc(im.cap || '')}" placeholder="图注" oninput="Actions.setImg('cap','${im.id}',this.value)">
-              </div>`).join('')}
-            </div>
-          </div>` : ''}
+      <!-- ── 概要条：标题 + 概要 + 关键指标 + 自检状态 ──
+           全部常驻在首屏。用户不用往下翻就知道这篇文章什么状态。 -->
+      <div class="brief" id="brief">
+        <div class="brief-row">
+          <input id="etitle" class="brief-title" placeholder="文章标题（还没有就点右边「起标题」）" value="${esc(S.project.title || '')}">
+          <div class="brief-metrics">${renderBriefMetrics(chars, heads, imgs, bank, usedN, facts, un, unHi)}</div>
+          <div class="brief-badges">${renderBriefBadges()}</div>
         </div>
-        <div id="img-plan" style="display:none;margin-top:12px"></div>
-        <div id="ver-cmp"></div>
-        ${renderDeliverPane(a, facts)}
+        <div class="brief-row brief-row2">
+          <span class="bs-l">概要</span>
+          <textarea id="abs" class="bs-t" rows="1" placeholder="一句话说清这篇讲什么（公众号列表页会显示）">${esc(S.project.abstract || '')}</textarea>
+        </div>
       </div>
 
+      <!-- ── 正文编辑区 ── -->
+      <div class="editor-shell">
+        <textarea class="editor" id="body" placeholder="正文。AI 写好会自动落进来。&#10;&#10;加粗写 **文字**，图片写 ![图注](文件名)">${esc(S.body || '')}</textarea>
+
+        ${imgs ? `<div class="img-where">
+          <div class="iw-h">正文里的图<span>${imgs} 张 · 点缩略图可换</span></div>
+          <div class="iw-row">
+            ${bodyImages().map((f, i) => `<button class="iw-item" data-act="imgWhere" data-arg="${i}"
+              title="${esc(f)}">
+              <img src="/data/images/${encodeURIComponent(f)}" alt="" loading="lazy">
+              <span class="n">${i + 1}</span>
+            </button>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- 操作栏：常驻，不跟着正文滚走 -->
+        <div class="editor-bar">
+          <button class="btn ghost sm" data-act="stash">存一版</button>
+          <button class="btn ghost sm" data-act="copyBody">复制全文</button>
+          <button class="btn ghost sm" data-act="toggleLib">${libOpen ? '收起图库' : '打开图库'}</button>
+          <span class="sp"></span>
+          <span class="bar-hint" id="bar-hint"></span>
+          <button class="btn brand sm" data-go="ship">下一步 · 排版发布</button>
+        </div>
+
+        ${libOpen ? `<div class="lib">
+          <div class="lib-h">图库<span>${bank.length} 张 · 已用 ${usedN}</span></div>
+          <div class="lib-actions">
+            <button class="btn brand sm" data-act="findImg">让 AI 找图</button>
+            <button class="btn ghost sm" data-act="suggestImg">推荐插入位置</button>
+            <input class="input xs" id="imgurl" placeholder="或贴图片直链" style="flex:1">
+            <button class="btn ghost sm" data-act="fetchImg">抓取</button>
+            <span class="drop-hint" id="drop">拖图 / Ctrl+V 贴图</span>
+          </div>
+          <div class="lib-row">
+            ${bank.map(im => `<div class="lib-item ${refs.has(im.file) ? 'used' : ''}" data-file="${esc(im.file)}">
+              <div class="pic" data-act="insertImg" data-arg="${im.id}" title="插入正文">
+                <img src="${esc(im.url || '/data/images/' + encodeURIComponent(im.file))}" alt="" loading="lazy">
+                ${refs.has(im.file) ? '<span class="ok">已用</span>' : ''}
+              </div>
+              <input class="input xs" value="${esc(im.cap || '')}" placeholder="图注" oninput="Actions.setImg(${im.id}, this.value)">
+            </div>`).join('')}
+          </div>
+        </div>` : ''}
+      </div>
+
+      ${orphan.length ? `<div class="note warn" style="margin-top:var(--s3)">正文引用了 ${orphan.length}
+        ${orphan.map(f => `<code>${esc(f)}</code>`).join('、')}，但图库里没有这几个文件</div>` : ''}
+
+      <div id="img-plan" style="display:none;margin-top:12px"></div>
+      <div id="ver-cmp"></div>
+
+      <!-- ── 交付区：默认折叠 ──
+           自检 12 项 / 标题候选 / 一键改写都在里面。
+           默认收起是为了首屏 —— 概要条上已有徽章说明状态。 -->
+      <details class="acc deliver-acc" id="deliver-acc">
+        <summary>
+          <span>交付 · 自检 / 标题 / 改写</span>
+          <span class="ds-n" id="deliver-sum"></span>
+        </summary>
+${renderDeliverPane(a, facts)}
+      </details>
+    </div>
       <aside class="write-side write-preview">
         <div class="wv-bar">
           <span class="wv-h">文章预览</span>
@@ -1490,6 +1507,77 @@ function renderSelfCheck() {
     </div>`
 }
 
+/* ══════════════ 概要条 ══════════════
+   用户原话：「文章概要要能看到，标题要一并给出！」
+   以及「主要功能要一屏就看到」。
+
+   原来标题是个裸输入框挂在最上面，概要（project.abstract）只存在于发布页，
+   自检在页面下方 999px 处 —— 首屏 700px 完全看不见。
+   实测：主要功能首屏可见度 2/5。
+
+   现在把「这篇文章是什么状态」压成两个函数：
+     renderBriefBadges()   结论：自检过没过、标题配不配套、概要写没写
+     renderBriefMetrics()  数字：字数/小节/图/AI味/加粗/待核事实
+   概要条整块约 80px，剩下的高度全给编辑器和预览。 */
+
+function renderBriefBadges() {
+  const c = selfCheck()
+  if (c.empty) return `<span class="bd bd-mute">还没写正文</span>`
+  const out = []
+
+  const bad = c.hits.filter(h => h.lv === `'hi'`)
+  if (bad.length) {
+    out.push(`<span class="bd bd-bad" title="${esc(bad.map(h => h.n).join('、'))}">` + `AI 味 ${bad.length} 处要改</span>`)
+  } else {
+    out.push(`<span class="bd bd-ok">自检 ${c.ai} 分</span>`)
+  }
+
+  /* 标题配套。用户明确要求标题要一并给出，
+     所以「标题对不对正文」这件事必须在首屏看得见，不能等翻到交付区 */
+  if (!c.titleOk.has) {
+    out.push(`<button class="bd bd-warn" data-act="taskTitle">还没标题 · 点我去起</button>`)
+  } else if (c.titleOk.cover < 60) {
+    out.push(`<span class="bd bd-warn" title="标题里这些词正文里没出现">` + `标题与正文只重合 ${c.titleOk.cover}%</span>`)
+  } else {
+    out.push(`<span class="bd bd-ok">标题配套</span>`)
+  }
+
+  const abs = String((S.project && S.project.abstract) || '').trim()
+  out.push(abs
+    ? `<span class="bd bd-ok" title="${esc(abs)}">概要已写</span>`
+    : `<button class="bd bd-warn" data-act="taskAbs">补概要</button>`)
+
+  return out.join('')
+}
+
+function renderBriefMetrics(chars, heads, imgs, bank, usedN, facts, un, unHi) {
+  const c = selfCheck()
+  const ai = c.empty ? null : c.ai
+  const k = Math.max(1, chars / 1000)
+  const m = []
+
+  /* sec=true 的是次要指标，窄屏下由 CSS 隐藏（.mt-sec），
+     鼠标悬停的 title 里还能看到。
+     实测 5 项全显示会把标题输入框挤到只剩 120px ——
+     标题是这篇文章的名字，优先级高于「小节 16」这种信息。 */
+  const add = (label, value, cls, title, sec) =>
+    m.push(`<span class="mt ${sec ? 'mt-sec' : ''} ${cls || ''}"${title ? ` title="${esc(title)}"` : ''}>${label}<b>${esc(String(value))}</b></span>`)
+
+  add(`字`, chars)
+  add(`小节`, heads, '', '', true)
+  add(`图`, imgs + '/' + (bank || []).length,
+    usedN < (bank || []).length ? `mt-warn` : '',
+    `正文用了 ${usedN} 张，图库共 ${bank.length} 张`, true)
+  if (ai !== null) add(`AI 味`, ai,
+    ai >= 75 ? `mt-ok` : ai >= 55 ? `mt-warn` : `mt-bad`,
+    `越高越没有AI味`)
+  add(`加粗`, (c.bold / k).toFixed(1), '',
+    `每千字加粗处数，5~10合适`, true)
+  if (unHi) m.push(`<span class="mt mt-bad" title="精确数字/引语/因果，错了会被当场抓出来">` + `高危事实<b>${unHi}</b></span>`)
+  else if (un) m.push(`<span class="mt mt-warn">` + `待核<b>${un}</b></span>`)
+
+  return m.join('')
+}
 function renderDeliverPane(a, facts) {
   const body = String(S.body || '')
   const c = selfCheck()

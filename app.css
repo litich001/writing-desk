@@ -1163,7 +1163,20 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
    预览是「读」的窗口，不是「发」的稿子，太大反而挤。
    但行距、字重、图片位置、引用块都按公众号的样子来，
    让人能判断这篇稿子发出去好不好看。 */
-.write-grid{grid-template-columns:minmax(0,1fr) minmax(340px,460px)}
+/* 左编辑 + 右预览。
+   ★ 原来是 minmax(0,1fr) minmax(340px,460px) —— 左右平分，
+   实测主栏只剩 403px，标题输入框被压到 120px（输入框有 size 默认宽度，
+   再加 min-width 就成了 120px 的死结）。
+
+   正确配比是「左 1fr 吃剩余 + 右固定区间」：
+     右侧预览是辅助，固定 360~440px 就够读
+     左侧是正文主战场，必须拿走所有剩余宽度
+   1fr 会自动吃掉右边给完的剩余空间，这就是 flex-basis:0 的等价物。 */
+/* 预览栏上限再收一点。
+   实测 1000px 视口下右侧吃满 440px，主栏只剩 423px ——
+   正文主战场比辅助窄，这不对。预览是「边写边看」，不是主视图。
+   380px 足够读一段排好版的正文（公众号正文宽 375）。 */
+.write-grid{grid-template-columns:minmax(0,1fr) minmax(340px,380px)}
 .write-side.write-preview{padding:0;overflow:hidden;background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-m);display:flex;flex-direction:column}
 .wv-bar{display:flex;align-items:baseline;gap:10px;padding:11px var(--s4);border-bottom:1px solid var(--line-2);background:var(--surface);flex:0 0 auto}
 .wv-h{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:var(--ink-2)}
@@ -1707,3 +1720,239 @@ body{
 /* self-chk 的通过/不通过状态色 */
 .chk .mk{transition:color var(--dur-base) var(--ease)}
 .self-chk-hd{transition:background-color var(--dur-base) var(--ease),color var(--dur-base) var(--ease)}
+
+/* ════════════════════════════════════════════════════════════
+   第六层 · 成稿页重做（首屏优先）
+
+   实测问题（1000×700 视口）：
+     主要功能首屏可见度 2/5
+     .editor 固定 min-height:600px，视口才 700px
+     操作栏 / 自检 / 标题候选 / 改写 全在首屏之外
+
+   这次的设计前提是「一屏」。所以：
+     · 编辑器高度改成 flex，跟随视口，不写死
+     · 概要条常驻顶部，压缩到 ~80px
+     · 操作栏常驻底部
+     · 交付区默认折叠
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 整页骨架：占满视口高度 ──
+   用 100dvh 而不是 100vh —— 移动端浏览器地址栏会吃掉高度，
+   100vh 在那种场景下会多出一截，底部露白。*/
+.write-grid{
+  height:calc(100dvh - var(--page-top,0px));
+  overflow:hidden;
+}
+.write-main,.write-side{
+  height:100%;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+}
+
+/* ── 概要条 ──
+   用户要求「文章概要要能看到，标题要一并给出」。
+   所以标题输入框 + 概要 + 关键指标 + 状态徽章全在这条里，
+   常驻顶部，不随正文滚动。 */
+.brief{
+  flex:0 0 auto;
+  display:flex;flex-direction:column;gap:2px;
+  padding:8px var(--s4) 6px;
+  background:var(--surface);
+  border:1px solid var(--line-2);
+  border-left:3px solid var(--brand);
+  border-radius:var(--r-m);
+  margin-bottom:var(--s3);
+}
+.brief-row{display:flex;align-items:center;gap:var(--s3);min-width:0}
+.brief-row2{align-items:flex-start;gap:var(--s4)}
+.brief-row2{align-items:flex-start}
+
+/* 标题输入：字号给到 h2 级别，它是这篇文章的「名字」 */
+.brief-title{
+  flex:1;min-width:0;
+  border:none;background:transparent;
+  font:700 clamp(18px,17px + 0.25vw,22px)/1.35 var(--serif);
+  color:var(--ink);
+  padding:2px 0;
+  border-bottom:1px solid transparent;
+  transition:border-color var(--dur-fast) var(--ease);
+}
+.brief-title::placeholder{color:var(--ink-4);font-weight:400}
+.brief-title:hover{border-bottom-color:var(--line-2)}
+.brief-title:focus{outline:none;border-bottom-color:var(--brand)}
+
+/* 状态徽章：一句话说完「过没过 + 差在哪」 */
+.brief-badges{display:flex;align-items:center;gap:6px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end}
+.bd{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 9px;border-radius:var(--r-full);
+  font:600 11px/1.7 var(--font);
+  border:1px solid transparent;
+  white-space:nowrap;
+  transition:all var(--dur-fast) var(--ease);
+}
+button.bd{cursor:pointer}
+button.bd:hover{transform:translateY(-1px)}
+.bd-ok{background:var(--ok-bg);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 26%,transparent)}
+.bd-warn{background:var(--warn-bg);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+.bd-bad{background:var(--danger-bg);color:var(--danger);border-color:color-mix(in srgb,var(--danger) 30%,transparent)}
+.bd-mute{background:var(--surface-3);color:var(--ink-4)}
+
+/* 概要输入：单行自动增高，不做成大textarea占地方 */
+.brief-row2{align-items:flex-start;gap:var(--s3)}
+.brief-row2 .bs-t{flex:1}
+.bs-l{
+  flex:0 0 auto;
+  font:700 9.5px/1.9 var(--font);letter-spacing:.14em;
+  color:var(--ink-4);
+  padding-top:1px;
+}
+.bs-t{
+  flex:1;min-width:0;
+  border:none;background:transparent;resize:none;
+  font:400 13px/1.55 var(--font);
+  color:var(--ink-2);
+  padding:1px 0;
+  border-bottom:1px dashed var(--line-2);
+  /* field-sizing:content 让它按内容自动增高，但概要是一句话，
+     不该长到 120px —— 上限 48px（约三行），超出滚动。
+     概要是导航，正文才是主角，不该抢高度。 */
+  field-sizing:content;
+  min-height:20px;
+  max-height:96px;
+  overflow-y:auto;
+  transition:border-color var(--dur-fast) var(--ease);
+}
+  transition:border-color var(--dur-fast) var(--ease);
+}
+.bs-t::placeholder{color:var(--ink-4)}
+.bs-t:focus{outline:none;border-bottom-color:var(--brand);color:var(--ink)}
+
+/* 关键指标：一排小数字 */
+/* 指标在标题行右侧：flex:0 0 auto 不换行，标题太长时它先让位 */
+.brief-metrics{display:flex;align-items:center;gap:2px;flex:0 0 auto;flex-wrap:nowrap}
+/* 标题必须有宽度下限。实测指标区用 flex:1 压缩时，
+   标题输入框会被挤成 0 宽 —— 标题是这篇文章的名字，
+   优先级高于「小节数 16」这种信息。 */
+/* 标题必须有宽度下限。实测指标区用 flex:1 压缩时，
+   标题输入框会被挤成 0 宽 —— 标题是这篇文章的名字，
+   优先级高于「小节数 16」这种信息。
+
+   ★ width:100% 是必需的，不是多余的：
+     <input> 有默认 size=20 的固有宽度，
+     只写 flex:1 1 auto 时它不会真的撑开，实测卡在 120px 不动。
+     min-width 只是下限，要「填满剩余空间」必须显式给 width:100%。 */
+/* ★ flex-basis:0 是关键。
+     写 flex:1 1 auto 时，flex-basis:auto 等于「按内容宽度」，
+     <input> 又带默认 size=20 的固有宽度 —— 结果它就卡在 120px 不动，
+     剩下大片空间白白浪费。实测两次都是这个原因。
+     flex-basis:0 才是真正的「填满剩余空间」，min-width 保底不塌。 */
+.brief-title{flex:1 1 0;min-width:200px}
+/* 次要指标：窄屏隐藏，靠 title 悬停还能看到 */
+.mt{
+  display:inline-flex;align-items:baseline;gap:3px;
+  padding:1px 7px;border-radius:var(--r-s);
+  font:500 10.5px/1.8 var(--font);
+  color:var(--ink-4);
+  background:var(--surface-2);
+  white-space:nowrap;
+}
+.mt{flex:0 0 auto}
+.mt b{font-weight:700;font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.mt-ok b{color:var(--ok)}
+.mt-warn b{color:var(--warn)}
+.mt-bad{background:var(--danger-bg)}
+.mt-bad b{color:var(--danger)}
+
+/* ── 编辑区：flex 自适应，不写死高度 ── */
+.editor-shell{
+  flex:1 1 auto;
+  min-height:0;              /* flex 子项要能收缩的关键 */
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.editor{
+  flex:1 1 auto;
+  min-height:180px;          /* 兜底，不能压到 0 */
+  height:auto;
+  resize:none;
+  border:1px solid var(--line-2);
+  border-radius:var(--r-m);
+  padding:var(--s4) var(--s5);
+  background:var(--surface);
+  font:400 var(--fs-body)/1.85 var(--mono);
+  color:var(--ink);
+  tab-size:2;
+}
+.editor:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(176,58,46,.08)}
+
+/* ── 操作栏：常驻底部 ──
+   原来它跟着正文往下滚，长稿子一长就找不着了。 */
+.editor-bar{
+  flex:0 0 auto;
+  margin-top:var(--s3);
+}
+.bar-hint{
+  font:400 11px/1 var(--font);
+  color:var(--ink-4);
+  font-variant-numeric:tabular-nums;
+  margin-right:var(--s2);
+}
+
+/* 图位置条：占一行，不挤占编辑高度太多 */
+.img-where{flex:0 0 auto;margin-top:var(--s2)}
+.iw-row{max-height:56px;overflow-y:auto}
+
+/* ── 右侧预览：同样占满高度 ── */
+.write-side.write-preview{height:100%;min-height:0}
+.wv-scroll{flex:1 1 auto;min-height:0;overflow-y:auto}
+
+/* ── 交付区：默认折叠 ── */
+.deliver-acc{margin-top:var(--s3);flex:0 0 auto}
+.deliver-acc > summary{
+  display:flex;align-items:center;gap:10px;
+  padding:9px var(--s4);
+  cursor:pointer;list-style:none;
+  font:600 12.5px/1.5 var(--font);
+  color:var(--ink-2);
+}
+.deliver-acc > summary::-webkit-details-marker{display:none}
+.deliver-acc > summary::before{
+  content:'▸';font-size:10px;color:var(--ink-4);
+  transition:transform var(--dur-fast) var(--ease);
+}
+.deliver-acc[open] > summary::before{transform:rotate(90deg)}
+.ds-n{
+  margin-left:auto;
+  font:500 11px/1 var(--font);color:var(--ink-4);
+  font-variant-numeric:tabular-nums;
+}
+.deliver-acc[open] > summary{border-bottom:1px solid var(--line-2)}
+
+/* 折叠状态下的交付区不占高度 */
+.deliver-acc:not([open]){display:block}
+
+/* ── 窄屏 ── */
+@media (max-width:1024px){
+  /* 窄屏下不再要求「一屏」—— 上下滚动比挤在一起好用 */
+  .write-grid{height:auto;overflow:visible}
+  .write-main,.write-side{height:auto}
+  .editor-shell{overflow:visible}
+  .editor{min-height:50vh;height:auto}
+  .wv-scroll{max-height:60vh}
+}
+@media (max-width:720px){
+  .brief-row{flex-wrap:wrap}
+  .brief-badges,.brief-metrics{max-width:100%;justify-content:flex-start}
+  .brief-metrics{margin-top:var(--s1)}
+}
+
+
+/* 次要指标：窄屏隐藏，靠 title 悬停还能看到。
+   ★ 必须放在文件末尾 —— 媒体查询只压制它【之后】的同权重规则，
+   而 .mt{display:inline-flex} 定义在前面，写在中间会被覆盖掉。
+   踩过一次：规则完全正确，但次要指标一直显示。 */
+@media (max-width:1400px){
+  .mt-sec{display:none}
+}

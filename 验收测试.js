@@ -370,7 +370,7 @@ sec('9c4 版面主次')
      预览栏宽度有上下限，不能写 1fr ——
      1fr 会把宽度和平分，编辑区就被挤窄了，长文没法写。 */
 ok('★ 成稿页左编辑 + 右文章预览，宽度有上下限',
-  css.includes('grid-template-columns:minmax(0,1fr) minmax(340px,460px)'))
+  css.includes('grid-template-columns:minmax(0,1fr) minmax(340px,380px)'))
 ok('侧栏有宽度上限', /\.write-side\{[^}]*max-width:340px/.test(css))
 ok('正文编辑器够高', /min-height:max\(600px/.test(css))
 /* 成稿页现在是「左编辑 + 右文章预览」，两栏都要有可用宽度。
@@ -654,6 +654,72 @@ sec('9c6t 手册与代码一致')
   ok('★ 手册里的路径指向当前目录（不是旧位置）',
     /E:\\Codex\\Opencode\\写作台/.test(manual) &&
     !/Get-ChildItem "E:\\文档/.test(manual))
+
+/* ════════ 9c9. 成稿页首屏优先 + 概要条 ════════
+   用户原话：「成稿页面，布局十分不合理，主要功能要一屏就看到。
+   文章概要要能看到，标题要一并给出！」
+
+   实测（1000×700 视口）改造前：主要功能首屏可见度 2/5
+     .editor 固定 min-height:600px，视口才 700px
+     操作栏 / 自检 / 标题候选 / 改写 全在首屏之外
+     标题是个裸输入框，概要根本不在这个页面上
+   改造后：首屏可见度 6/6，概要条 91px。
+*/
+sec('9c9 成稿页首屏与概要条')
+ok('★ 有概要条（标题 + 概要 + 指标 + 状态徽章）',
+  /<div class="brief" id="brief">/.test(js) && /class="brief-title"/.test(js) &&
+  /class="brief-metrics"/.test(js) && /class="brief-badges"/.test(js))
+ok('★ 概要输入就在成稿页（不是只在发布页）',
+  /<textarea id="abs" class="bs-t"/.test(js))
+ok('★ 有 renderBriefBadges（说完过没过、标题配不配套、概要写没写）',
+  /function renderBriefBadges/.test(js))
+ok('★ 有 renderBriefMetrics（关键数字）', /function renderBriefMetrics/.test(js))
+ok('★ 徽章覆盖：自检 / 标题配套 / 概要状态',
+  /c\.ai\} 分/.test(js) && /标题配套/.test(js) && /补概要/.test(js))
+ok('★ 没标题时徽章是可点的按钮（能直接去起）',
+  /data-act="taskTitle"/.test(js))
+
+ok('★ 编辑器高度跟随视口（不写死 600px）',
+  /\.editor\{[\s\S]{0,200}?flex:1 1 auto/.test(css) &&
+  !/\.editor\{[\s\S]{0,200}?min-height:600px/.test(css))
+ok('★ 整页骨架用 100dvh（移动端地址栏会吃掉 vh 高度）',
+  /height:calc\(100dvh/.test(css))
+ok('★ 操作栏常驻（不跟着正文滚走）',
+  /\.editor-bar\{[\s\S]{0,120}?flex:0 0 auto/.test(css))
+ok('★ 交付区默认折叠（否则高度全被它吃掉）',
+  /<details class="acc deliver-acc"/.test(js))
+ok('★ 概要条压到 ~90px（实测 91px）',
+  /\.brief\{[\s\S]{0,300}?padding:8px/.test(css))
+
+/* 标题优先级高于次要指标 —— 本轮踩出来的：
+   实测 5 项指标全显示，标题输入框被挤成 120px。
+   标题是这篇文章的名字，「小节 16」只是信息。 */
+ok('★ 标题有宽度下限，不被指标挤没',
+  /\.brief-title\{[\s\S]{0,200}?flex:1 1 0[\s\S]{0,80}?min-width:200px/.test(css))
+ok('★ 次要指标标记为 mt-sec（窄屏隐藏，title 里还能看）',
+  /mt-sec/.test(css) && /mt-sec/.test(js))
+
+/* ★ 这类 bug 语法完全合法，只能靠断言拦。
+   本轮在 renderBriefMetrics 里栽了十几处：
+     class="'mt-warn'"  → CSS 的 .mt-warn 匹配不上，指标永远没颜色
+     `''`         → 以为是空串，其实是两个字面量引号，判断永远为真
+     '/'             → 渲染出 引号/引号
+   代码看起来完全没问题，只能靠目视或断言发现。 */
+ok('★ ★ CSS 类名不带引号（带了就让样式全部失效）',
+  !/class="'/.test(js) && !/class="`''`/.test(js),
+  (js.match(/class="[^"]{0,6}'/) || [])[0] || '')
+/* 这两条查的是「生成代码时手滑留下的字面量」——
+   本轮在 renderBriefMetrics 里栽了十几处，语法完全合法、测试也测不出来：
+     class="'mt-warn'"  CSS 的 .mt-warn 匹配不上，指标永远没颜色
+     `''`              以为是空串，其实是两个字面量引号，判断永远为真
+   所以只能靠扫描源码文本拦。 */
+const BT = String.fromCodePoint(96), QQ = String.fromCodePoint(39)
+ok('★ ★ 不写字面量空串（会被当成非空值，判断永远为真）',
+  !js.includes(BT + QQ + QQ + BT))
+ok('★ 不写字面量斜杠（会显示成带引号的斜杠）',
+  /* 只查「反引号里紧跟引号斜杠」这一种形态。
+     split('/') 之类是正常代码，不能一并判死。 */
+  !new RegExp(BT + QQ + '/' + QQ).test(js))
 
 /* ════════ 9c8. 视觉标准（Awwwards / FWA 评审视角）════════
    2026-10-03 按获奖级标准做了一轮系统自检，量出 12 项硬伤：
