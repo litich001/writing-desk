@@ -43,6 +43,9 @@ const sh = c => { try { return execSync(c, { cwd: ROOT, stdio: 'pipe' }).toStrin
 sec('1 能否启动')
 const html = fs.readFileSync(ROOT + '/index.html', 'utf8')
 const css = fs.readFileSync(ROOT + '/app.css', 'utf8')
+const sty = fs.readFileSync(ROOT + '/engine/styles.mjs', 'utf8')
+const 验收src = fs.readFileSync(ROOT + '/验收测试.js', 'utf8')
+const stt = fs.readFileSync(ROOT + '/engine/style-test.mjs', 'utf8')
 const js = fs.readFileSync(ROOT + '/app.js', 'utf8')
 const srv = fs.readFileSync(ROOT + '/server.mjs', 'utf8')
 const eng = fs.readFileSync(ROOT + '/engine/layout.mjs', 'utf8')
@@ -587,10 +590,19 @@ sec('9c6t 手册与代码一致')
     /style-check-me\.mjs warm/.test(manual) && !/style-check-me\.mjs sharp/.test(manual))
   ok('★ 手册禁提前否定（用户点名的第一号 AI 味）',
     /不许提前否定/.test(manual) && /先说结论/.test(manual) && /免得有人只看标题/.test(manual))
-  ok('★ 手册写了去掉双引号/冒号/破折号',
-    /双引号、冒号、破折号/.test(manual) && /自检按密度判/.test(manual))
-  ok('★ 手册标注了标点的三种例外（出处/引语/句号）',
-    /出处：/.test(manual) && /直接引语前面/.test(manual))
+/* ① 旧断言找的是「双引号、冒号、破折号」连写，新手册写成「三条硬禁」。
+     事实没变，措辞变了 —— 改断言，别改手册去迁就旧措辞。 */
+ok('★ 手册写明三条标点不许用',
+  /双引号 —— 全篇不许/.test(manual) &&
+  /破折号 —— 全篇不许/.test(manual) &&
+  /冒号 —— 正文里不许/.test(manual) &&
+  /不用密度判|密度判/.test(manual))
+
+/* ② 旧断言只找两个词，新手册写了四种合法用法，比原来更全。 */
+ok('★ 手册标注了标点的四种合法用法（图注/来源表/表格/直接引语）',
+  /图注/.test(manual) && /来源表/.test(manual) &&
+  /表格单元格/.test(manual) && /直接引语/.test(manual))
+
   ok('★ 手册要求一次给 6 个完整标题（不要第二步）',
     /6 个不同方向/.test(manual) && /完整标题/.test(manual) && /不要需要让人再操作第二步/.test(manual))
   ok('★ 手册要求标题用词与正文一致',
@@ -714,6 +726,202 @@ ok('★ 没有重复的 action 定义（同名 key 静默覆盖，不报错但�
     var m = js.match(/^  (takeNewTitles|focusTitleIn|useTitle|taskTitle)\(\)/gm) || []
     return new Set(m).size === m.length
   })())
+
+/* ════════ 9d0. 四组硬禁令（2026-10-03）════════
+   用户原话：
+     「不允许用双引号、破折号、冒号」
+     「不允许预设性的、否定性的语句；全篇不允许有否定式语句」
+
+   关键决定：标点从「按密度判」改成硬禁。
+   密度判等于放行 —— 4000 字稿子放 40 个破折号也才 1/千字，
+   per100:1 的规则根本不响。用户说的是「不许用」，就按不许用来做。 */
+sec('9d0 四组硬禁令')
+ok('★ 三条标点在 styles.mjs 里都有硬禁',
+  /export const PUNCT_BAN/.test(sty) &&
+  /n: '双引号'/.test(sty) && /n: '破折号'/.test(sty) && /n: '冒号'/.test(sty))
+ok('★ 否定式成一组（不是A而是B / 没有A只有B / 既不也不 / 双重否定 / 全称否定）',
+  /export const NEGATION_BAN/.test(sty) &&
+  /不是A而是B/.test(sty) && /没有A只有B/.test(sty) &&
+  /既不也不/.test(sty) && /双重否定/.test(sty) && /全称否定/.test(sty))
+ok('★ 预设性成一组（假装共识 / 主观预设 / 替读者划边界 / 集体主语）',
+  /export const PRESET_BAN/.test(sty) &&
+  /假装共识/.test(sty) && /主观预设/.test(sty) &&
+  /替读者划边界/.test(sty) && /集体主语/.test(sty))
+ok('★ 禁令挂在 aiSmell（通用层）而不是塞进九个 forbid',
+  /sharedBans\(\)/.test(sty) && /for \(const b of sharedBans/.test(sty))
+ok('★ 十个风格都从 sharedBans 继承（不是逐个复制）',
+  /export function sharedBans/.test(sty))
+
+/* 标点白名单必须把 markdown 语法排除掉。
+   实测踩过：--- 分隔线和 |---| 表格分隔行被判成破折号 6 次，
+   一篇 4186 字的稿子报 9 处破折号，其中 6 处是误伤。 */
+ok('★ 破折号排除 markdown 的分隔线和表格分隔行',
+  /export const DASH_RE = \/——\|\(\?<!\-\)--\(\?!-\)\/g/.test(sty))
+ok('★ app.js 那份 DASH_RE 与 styles.mjs 一致（两处判据不能分叉）',
+  /const DASH_RE = \/——\|\(\?<!\-\)--\(\?!-\)\/g/.test(js))
+
+/* 白名单一致性的实际后果：界面上过了、服务端判不过，
+   用户改到崩溃也找不到原因。这是最坏的体验，必须锁死。 */
+ok('★ ★ 标点白名单两处完全一致（PUNCT_OK 不能分叉）',
+  (function(){
+    var a = (sty.match(/export const PUNCT_OK = (.*)/) || [])[1]
+    var b = (js.match(/const PUNCT_OK = (.*)/) || [])[1]
+    if (!a || !b) return false
+    return a.trim() === b.trim()
+  })())
+ok('★ 白名单覆盖合法用法（图注 / 来源表 / 表格 / 直接引语）',
+  /图\|图表\|图片\|照片/.test(sty) && /出处\|来源\|图注\|备注/.test(sty) &&
+  /原话\|她说\|他说/.test(sty))
+ok('★ scan 支持 punctMask 掩码（否则图注的「出处：」会被误伤）',
+  /punctMask/.test(js) && /function maskPunct/.test(js))
+
+/* 否定式只禁 AI 句型，不禁「不」字本身。
+   「她没停下」是叙事，「没有A，只有B」是 AI 句型。 */
+ok('★ 否定式不禁「不」字本身（否则正常中文写作全被判死）',
+  /只禁 AI 句型/.test(sty))
+
+/* ── 前端 RULES 必须和服务端同源 ── */
+ok('★ 前端 RULES 有弯引号硬禁（不是只靠密度）',
+  /n:'弯引号'/.test(js) && /lv:'hi'/.test(js))
+ok('★ 前端 RULES 有否定式五条',
+  /n:'不是A而是B'/.test(js) && /n:'没有A只有B'/.test(js) &&
+  /n:'既不也不'/.test(js) && /n:'双重否定'/.test(js) &&
+  /n:'全称否定'/.test(js))
+ok('★ 前端 RULES 有预设式三条',
+  /n:'假装共识'/.test(js) && /n:'主观预设'/.test(js) && /n:'集体主语'/.test(js))
+ok('★ 旧的密度判标点规则已删（留着会和新规则重复报）',
+  !/n:'冒号过密'/.test(js) && !/n:'破折号过密'/.test(js) && !/n:'引号过密'/.test(js))
+
+/* ════════ 9d1. 常量必须提到文件顶部 ════════
+   暂时性死区本项目已栽五次：
+     wvTimer / peekAbort / peekHtml / newTitlesPending / DASH_RE
+   症状是模块加载就抛，整个页面白屏或功能全废。
+   根治不是「每次都记得前移」，是「常量一律放最顶部」。 */
+sec('9d1 常量位置')
+ok('★ DASH_RE 在 PUNCT_BAN 之前声明',
+  sty.indexOf('export const DASH_RE') > 0 &&
+  sty.indexOf('export const DASH_RE') < sty.indexOf('export const PUNCT_BAN'))
+ok('★ PUNCT_OK 也在 PUNCT_BAN 之前',
+  sty.indexOf('export const PUNCT_OK') < sty.indexOf('export const PUNCT_BAN'))
+ok('★ 每个常量只定义一次',
+  (sty.match(/export const DASH_RE/g) || []).length === 1 &&
+  (sty.match(/export const PUNCT_OK/g) || []).length === 1)
+
+/* ════════ 9d2. 正样本必须真过 ════════
+   判据写完不测等于没写。加禁令之后 8 个正样本全红过一轮，
+   原因是正样本本身就塞满了「不是A而是B」「其实」和弯引号 ——
+   那些正是 AI 默认输出的样子。 */
+sec('9d2 正样本合规')
+ok('★ style-test 有四组新禁令的对抗负样本',
+  /name: '弯引号'/.test(stt) && /name: '否定式招牌句'/.test(stt) &&
+  /name: '假装共识'/.test(stt) && /name: '双重否定'/.test(stt))
+ok('★ 有白名单用例（出处：和直接引语必须放行）',
+  /expectClean/.test(stt) && /白名单没有误伤/.test(stt))
+ok('★ 弯引号负样本里真的有弯引号',
+  (function(){
+    var m = stt.match(/name: '弯引号', text: '([^']*)'/)
+    if (!m) return false
+    return /[“”]/.test(m[1])
+  })())
+ok('★ 十个风格都有正样本',
+  (stt.match(/^  (warm|sharp|person|news|explain|biz|talk|cold|crit|story): /gm) || []).length === 10)
+
+/* ════════ 9d3. app.js 常量顺序 ════════
+   这里出过真 bug：DASH_RE 声明在 RULES 之后四千字符处，
+   而 RULES 的数组字面量求值时就要读它 —— 浏览器直接 ReferenceError，
+   整个 app.js 加载失败。
+
+   9d1 只查了 styles.mjs，漏了 app.js。
+   ★ 教训：断言要盯住「出问题的那个文件」，
+     不能只盯「你当时想到的那个文件」。 */
+sec('9d3 app.js 常量顺序')
+ok('★ DASH_RE 在 RULES 之前（否则浏览器加载即 TDZ 报错）',
+  js.indexOf('const DASH_RE') > 0 &&
+  js.indexOf('const DASH_RE') < js.indexOf('const RULES = ['))
+ok('★ PUNCT_OK 在 RULES 之前', (function(){
+  var i = js.indexOf('const PUNCT_OK'), j = js.indexOf('const RULES = [')
+  return i > 0 && i < j
+})())
+ok('★ maskPunct 也在 RULES 之前（scan 会调它）', (function(){
+  var i = js.indexOf('function maskPunct'), j = js.indexOf('const RULES = [')
+  return i > 0 && i < j
+})())
+ok('★ app.js 的 DASH_RE 与 styles.mjs 完全一致',
+  (function(){
+    var a = (sty.match(/export const DASH_RE = (.*)/) || [])[1]
+    var b = (js.match(/const DASH_RE = (.*)/) || [])[1]
+    return a && b && a.trim() === b.trim()
+  })())
+ok('★ 自检探针把常量区也摘进去了（否则 new Function 里 TDZ）',
+  /const consts = between\(/.test(验收src) && /strip\(consts\)/.test(验收src))
+ok('★ 自检探针有锚点失效的显式报错（不崩在 TDZ 上）',
+  /探针无法构建/.test(验收src) && /段没摘到/.test(验收src))
+
+/* ════════ 9d4. 自检文案必须跟着判据走 ════════
+   判据从「按密度」改成「硬禁」之后，自检界面那三行
+   还写着「每千字 0.7 个」—— 用户会以为
+   「没超阈值所以过了」，其实一个都不许有。
+
+   ★ 这类不一致比没有检查更糟：自检显示全绿，稿子其实违规。
+     而且错得很隐蔽，测试全过、界面全绿、只有用户会发现。
+
+   同一个根因还有第二处：右侧摘要和明细面板显示不一样，
+   会让人怀疑工具本身出了问题。 */
+sec('9d4 自检文案与判据一致')
+ok('★ 明细面板标点三条标为「硬禁」', (function(){
+  /* 原来这条断言的正则写成了 /punct?3?\.?hit/ ——
+     想同时匹配 punct.hit 和 p3.hit，但那个写法两者都匹配不到，
+     于是断言恒为 false。界面实测本来是对的，错的只有断言。
+     ★ 正则里想表达「可选」要写 (punct|p3)，不是把字符挪一挪。 */
+  var m = js.match(/rows\.push\(chk\(!p3\.hit[\s\S]{0,900}?rows\.push\(chk\(c\.imgs/)
+  if (!m) return false
+  var t = m[0]
+  return t.includes('双引号（硬禁）') && t.includes('冒号（硬禁）') && t.includes('破折号（硬禁）')
+})())
+ok('★ 文案不再显示「每千字 X 个」（密度语义已废除）',
+  !/chk\(c\.(quote|colon|dash) \/ k/.test(js))
+ok('★ 右侧摘要也改成硬禁语义（与明细面板一致）', (function(){
+  var m = js.match(/function renderAsideCheck[\s\S]{0,1400}?\n}/)
+  if (!m) return false
+  return /p3\.hit\('冒号'\)/.test(m[0]) && !/c\.colon \/ k/.test(m[0])
+})())
+ok('★ 文案说「没有」时判据确实没命中（不能自相矛盾）',
+  /'没有，全篇用的直角引号'/.test(js) &&
+  /'没有（图注出处和引语前的已自动放行）'/.test(js) &&
+  /'没有（分隔线和表格不算）'/.test(js))
+ok('★ 取数收成 punctOf 一处（判据和文案必须同源）',
+  (js.match(/function punctOf/g) || []).length === 1 &&
+  /const p3 = punctOf\(c\.hits\)/.test(js))
+ok('★ 没有残留的裸 punct.xxx 调用（自由变量，语法过得去但运行时炸）',
+  !/[^a-zA-Z]punct\.(hit|any|count)/.test(js))
+ok('★ 破折号文案提到分隔线不算（避免用户误以为误伤）',
+  /分隔线和表格不算/.test(js))
+
+/* 手册同步 —— 这个项目栽过三次「改了代码没改手册」。
+   AI 读的是手册，手册说「尽量去掉」它就会继续用。 */
+ok('★ 手册写的是「硬禁」不是「尽量去掉」',
+  /标点：三条硬禁，不许用/.test(manual) && !/尽量去掉/.test(manual))
+ok('★ 手册有否定式一节，并写明「不」字不禁',
+  /否定式：只禁 AI 句型/.test(manual) && /不禁「不」字/.test(manual))
+ok('★ 手册有预设性一节，四层都在',
+  /预设性：假装这是共识/.test(manual) &&
+  /假装共识/.test(manual) && /主观预设/.test(manual) &&
+  /替读者划边界/.test(manual) && /集体主语/.test(manual))
+ok('★ 手册说明了通用禁令对所有风格生效（不是只有 warm）',
+  /所有风格都生效/.test(manual))
+ok('★ 手册指明判据的两处位置（PUNCT_BAN / RULES）',
+  /PUNCT_BAN/.test(manual) && /`app\.js` 的 `RULES`/.test(manual))
+ok('★ 手册写了四条合法放行（图注/来源表/表格/直接引语）',
+  /图注/.test(manual) && /来源表/.test(manual) &&
+  /表格单元格/.test(manual) && /直接引语/.test(manual))
+ok('★ 手册章节编号连续（插节后忘了顺延，AI 会引用错）', (function(){
+  var m = manual.match(/^## (\d+)\. /gm) || []
+  var nums = m.map(function(x) { return Number(x.match(/\d+/)[0]) })
+  for (var i = 0; i < nums.length; i++) if (nums[i] !== i + 1) return false
+  return true
+})())
+ok('★ 手册的自检项数与实际一致（十二项）',
+  /自检这十二项/.test(manual))
 
 sec('9ca 暂时性死区')
 {
@@ -1329,14 +1537,60 @@ ok('★ selfCheck 挂在测试入口上（不挂就没法写断言）',
 /* 把 RULES / scan / selfCheck 三段原样摘出来，在 node 里跑真输入。
    这是本轮唯一能挡住「自检读缓存」这类漏报的手段 ——
    grep 只能证明代码长什么样，证明不了它抓不抓得到东西。 */
+/* 把 RULES / 常量区 / scan / selfCheck 四段原样摘出来，在 node 里跑真输入。
+   这是唯一能挡住「自检读缓存」这类漏报的手段 ——
+   grep 只能证明代码长什么样，证明不了它抓不抓得到东西。
+
+   ★ 拼接顺序必须和源码一致：new Function 的 body 里 const 有暂时性死区，
+     顺序错了报出来的是「Cannot access X before initialization」，
+     和真实病因毫无关系（这个项目栽过五次同样的坑）。
+     所以下面每段都带一个标记，缺了就直接报「探针无法构建」，
+     而不是让测试崩在一个看不懂的错上。 */
+/* 把常量区 / RULES / scan / selfCheck 四段原样摘出来，在 node 里跑真输入。
+   这是唯一能挡住「自检读缓存」这类漏报的手段 ——
+   grep 只能证明代码长什么样，证明不了它抓不抓得到东西。
+
+   ★ 拼接顺序必须和源码一致：new Function 的 body 里 const 有暂时性死区。
+     RULES 的数组字面量在求值那一刻就要读 DASH_RE，
+     而 DASH_RE 声明在后面就报
+     「Cannot access DASH_RE before initialization」，
+     报错信息和真实病因毫无关系（这个项目栽过六次同样的坑）。
+
+   ★ app.js 自己出过一次这个 bug：DASH_RE 曾在 RULES 之后四千字符处声明，
+     浏览器里直接 ReferenceError，整个前端加载失败。
+     已把常量区挪到 RULES 之前，9d3 那条断言盯着这个顺序。
+
+   ★ 锚点失效时报「探针无法构建」，不崩在 TDZ 上 ——
+     后者看不出是锚点问题还是顺序问题，排查成本高得多。 */
 const probeFn = (() => {
   const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
-  const rules = js.slice(js.indexOf('const RULES = ['), js.indexOf('function scan('))
-  const scanSrc = js.slice(js.indexOf('function scan('), js.indexOf('function runAudit('))
-  const chkSrc = js.slice(js.indexOf('function selfCheck'), js.indexOf('/* 一条自检项'))
+  const between = (a, b) => {
+    const i = js.indexOf(a), j = js.indexOf(b)
+    return (i >= 0 && j > i) ? js.slice(i, j) : ''
+  }
+  const consts = between('/* 标点白名单 ——', 'const RULES = [')
+  const rules = between('const RULES = [', 'function scan(')
+  const scanSrc = between('function scan(', 'function runAudit(')
+  const chkSrc = between('function selfCheck', '/* 一条自检项')
+  /* 顺序错位检测：常量必须在 RULES 之前，否则 new Function 里 TDZ */
+  if (consts.indexOf('const RULES') >= 0 || rules.indexOf('const DASH_RE') >= 0) {
+    console.log('  （自检探针无法构建：常量区与 RULES 的先后顺序反了）')
+    return null
+  }
+  const need = [['常量区', consts], ['RULES', rules], ['scan', scanSrc], ['selfCheck', chkSrc]]
+  for (const [n, t] of need) {
+    if (!t || t.length < 20) {
+      console.log('  （自检探针无法构建：' + n + ' 段没摘到，锚点可能失效了）')
+      return null
+    }
+  }
+  if (!/const DASH_RE/.test(consts) || !/const PUNCT_OK/.test(consts)) {
+    console.log('  （自检探针无法构建：常量区缺 DASH_RE 或 PUNCT_OK）')
+    return null
+  }
   try {
     return new Function('S', 'bodyImages', 'now',
-      strip(rules) + '\n' + strip(scanSrc) + '\n' + strip(chkSrc) +
+      strip(consts) + '\n' + strip(rules) + '\n' + strip(scanSrc) + '\n' + strip(chkSrc) +
       '\nreturn function(body, project){ S.body = body; S.project = project; return selfCheck() }')
   } catch (e) {
     console.log('  （自检探针无法构建：' + e.message + '）')
