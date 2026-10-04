@@ -134,9 +134,17 @@ a{color:inherit;text-decoration:none}
   font-size:var(--fs-meta);font-weight:500;letter-spacing:.04em;color:var(--ink-4);
   padding:0 var(--s2);margin-bottom:var(--s2);
 }
+/* 导航项：高度由内容决定。
+   原来这里写死 height:32px —— 那是给「一个图标 + 一个字」的旧版导航写的。
+   现在每项有两行（名称 + 一句说明），32px 装不下，
+   而固定高度会盖过一切 flex 设置（实测 flex:0 0 auto 也不起作用）。
+   ★ 为什么之前的验收没抓到：
+     我只查了「项与项有没有重叠」和「内容有没有渲染」，都过了，
+     压根没查「项够不够高装得下内容」。
+     ★ 断言覆盖的是我想验证的，不是实际会出错的。 */
 .nav{
   display:flex;align-items:center;gap:var(--s2);width:100%;
-  height:32px;padding:0 var(--s2);color:var(--ink-2);font-size:var(--fs-ctl);
+  padding:0 var(--s2);color:var(--ink-2);font-size:var(--fs-ctl);
   border-radius:var(--r-m);transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
   text-align:left;
 }
@@ -3029,4 +3037,105 @@ textarea.input,select.input,.field textarea,.field select{
 /* 概要条内部三块：字重分层，不加框 */
 .brief-title,.brief-metrics,.brief-badges{
   border-radius:var(--r1);
+}
+
+/* ════════════════════════════════════════════════════════════
+   第九层 · 侧栏导航项布局修复
+
+   用户原话：
+     「你肉眼就能看出有很多问题，不知道你怎么通过自己的验收的。
+       首先你的 UI 在左侧的写作台下边那四个菜单栏，那都互相遮挡和重合都什么样子了？」
+
+   ★ 这条批评是对的，而且我的验收漏了它 ——
+     我验的是「四个项都在、序号和说明都渲染了、四步能跳转」，
+     全过了；但从没验「项和项之间有没有压」「文字有没有被挤成 0 高」。
+
+   实测（getBoundingClientRect）：
+     导航项 4 个，y 134→166 / 170→202 / 206→238 / 242→274
+     项与项之间没有重叠（这项我原来的验收查了，是过的）
+
+     真正的问题是项内部：
+       gridTemplateRows = 0px 17.395px
+       .st 22×22 跨第 1~3 行
+       .tx 高 18  @y135
+       .ds 高 15  @y154
+       导航项总高只有 32px
+
+     第一行被压成 0px —— 序号跨两行挤在中间，
+     标题和说明上下错开，看上去就是「互相重合」。
+
+   根因：grid-template-rows 没写，让它自动分配。
+   隐式行在「跨行元素 + align-items:center」下会算出一个 0 高的行。
+
+   修法（不用 grid，用 flex + 固定两行）：
+     左：序号（竖排居中）
+     右：上行标题 + 下行说明（flex column）
+   不跨行就没有隐式行，也就没有 0 高的问题。
+   ════════════════════════════════════════════════════════════ */
+.side .nav{
+  position:relative;
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  width:100%;
+  padding:11px 12px;
+  border:1px solid transparent;
+  border-radius:var(--r3);
+  background:transparent;
+  text-align:left;
+  cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),
+             border-color var(--dur-fast) var(--ease),
+             transform var(--dur-fast) var(--ease);
+}
+.side .nav + .nav{margin-top:3px}
+.side .nav:hover{
+  background:var(--glass-1);
+  -webkit-backdrop-filter:var(--blur-1);
+  backdrop-filter:var(--blur-1);
+}
+.side .nav:active{transform:scale(.985)}
+
+/* 序号：固定方形，不参与弹性伸缩 */
+.side .nav .st{
+  flex:0 0 24px;
+  width:24px;height:24px;
+  display:grid;place-items:center;
+  border-radius:50%;
+  border:1.5px solid var(--line);
+  background:transparent;
+  font:700 11.5px/1 var(--font);
+  font-variant-numeric:tabular-nums;
+  color:var(--ink-4);
+  transition:all var(--dur-fast) var(--ease);
+}
+.side .nav .ic{display:none}
+
+/* 右侧：标题和说明两行，flex column 明确分行，
+   没有隐式行，也就没有 0 高 */
+.side .nav .tx-wrap{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.side .nav .tx{
+  font:600 13.5px/1.3 var(--font);
+  color:var(--ink-2);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.side .nav .ds{
+  font:400 11px/1.35 var(--font);
+  color:var(--ink-4);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.side .nav .badge{
+  flex:0 0 auto;
+  align-self:center;
 }

@@ -95,8 +95,8 @@ function shell() {
       <div class="nav-label">流程</div>
       ${PAGES.map(p => `<button class="nav" data-go="${p.id}" title="${p.full} · ${p.desc}">` +
         `<span class="st">${p.n}</span>` +
-        `<span class="tx">${p.full}</span>` +
-        `<span class="ds">${p.desc}</span>` +
+        `<span class="tx-wrap"><span class="tx">${p.full}</span>` +
+        `<span class="ds">${p.desc}</span></span>` +
         `<span class="badge hide"></span></button>`).join('')}
     </div>
     <div class="side-foot">
@@ -1347,8 +1347,11 @@ ${renderDeliverPane(a, facts)}
          这个位置就浪费了。改成写稿时真正需要的两件工具。 -->
     <aside class="write-side write-aside">
 
-      <!-- 备选标题：AI 交稿时写进 data/titles.json，这里自动收下，
-           不用用户再复制粘贴一次。没有的话给一条明确的出路。 -->
+      <!-- 备选标题：AI 交稿时把标题写进 data/titles.json，这里自动收下。
+           ★ 用户原话「不要让我再操作第二步」——
+             所以这里没有「复制『起标题』的要求」这个按钮。
+             自动收标题的功能本来就有，是那个按钮把它变成了主入口。
+             手工粘贴收进折叠区，只在 AI 漏交时才用。 -->
       <section class="aside-sec">
         <div class="as-h">
           <span class="as-t">备选标题</span>
@@ -1361,17 +1364,21 @@ ${renderDeliverPane(a, facts)}
           </button>`).join('')}
         </div>`
         : `<div class="as-empty">
-            还没有备选标题。
-            <button class="btn ghost sm block" data-act="taskTitle" style="margin-top:8px">复制「起标题」的要求</button>
-            <div class="as-hint">AI 交稿时把标题写进 data/titles.json，这里会自动收下</div>
+            <div class="as-hint">正文写完，标题会跟着一起出现在这儿。<br>
+              AI 漏交了，下面的折叠区里可以自己粘。</div>
             ${(newTitlesPending || []).length ? `<div class="note warn" style="margin-top:8px">
               AI 又交了 ${newTitlesPending.length} 个标题，你自己粘的那批没被覆盖。
               <button class="pref-btn" data-act="takeNewTitles">换用 AI 这批</button>
             </div>` : ''}
           </div>`}
-        <button class="btn ghost sm block as-paste-btn" data-act="focusTitleIn">
-          ${titlePoolRaw && titlePoolRaw.trim() ? '编辑我粘的标题' : '我自己有标题'}
-        </button>
+        <details class="acc acc-flat as-paste">
+          <summary>万一 AI 没给标题，我自己粘</summary>
+          <div class="in">
+            <textarea class="input" id="title-in" rows="4"
+              placeholder="一行一个，粘进来就变成可点的按钮">${esc(titlePoolRaw || '')}</textarea>
+            <button class="btn ghost sm block" data-act="taskTitle">复制「起标题」的要求</button>
+          </div>
+        </details>
       </section>
 
       <!-- 一键改写：复制「要求 + 原文」出去，粘回 AI 对话窗口改 -->
@@ -1680,8 +1687,16 @@ function renderBriefBadges() {
 
   /* 标题配套。用户明确要求标题要一并给出，
      所以「标题对不对正文」这件事必须在首屏看得见，不能等翻到交付区 */
+  /* 「还没标题」原来给的是按钮「点我去起」——
+     点了要复制一段要求，粘到 AI 对话窗口，再把标题粘回来。
+     那就是第二步，用户明说不要。
+
+     标题要通读全文才起得来，本地任何按钮都起不出来，
+     所以这里只报状态、给出路，不给假动作。
+     出路是右侧标题区那个「万一 AI 没给标题，我自己粘」。 */
   if (!c.titleOk.has) {
-    out.push(`<button class="bd bd-warn" data-act="taskTitle">还没标题 · 点我去起</button>`)
+    out.push(`<span class="bd bd-warn" title="标题要通读全文才起得来，写完正文时一起交给 AI">` +
+      `还没标题 · 写完正文时一起交</span>`)
   } else if (c.titleOk.cover < 60) {
     out.push(`<span class="bd bd-warn" title="标题里这些词正文里没出现">` + `标题与正文只重合 ${c.titleOk.cover}%</span>`)
   } else {
@@ -1801,27 +1816,32 @@ function renderDeliverPane(a, facts) {
     <div class="dc dc-title">
     <div class="side-h">标题<span>给几种，挑一个就换上去</span></div>
     <div class="side-note">
-      标题要读懂全文才起得来，<b>本地拼不出来</b>。
-      复制下面这段要求给 AI，它会给几个不同方向的完整标题，
-      粘回下面这个框，每一个都会变成一个可点的按钮。
+      正文写完，标题跟着正文一起交，写进 <b>data/titles.json</b>，
+      这边自动收下，点一下就换上去。<br>
+      标题要通读全文才起得来，所以这一块没有「一键生成」——
+      本地拼出来的都是碎片。
     </div>
-    <button class="btn brand block" data-act="taskTitle">复制「起标题」的要求</button>
-    <div class="task-out" id="task-title" style="display:none"></div>
-    <textarea class="input" id="title-in" rows="5"
-      style="margin-top:8px"
-      placeholder="把 AI 给的标题粘进来，一行一个">${esc(titlePoolRaw || '')}</textarea>
     ${titlePool.length ? `
       <div class="tp-list">
         ${titlePool.map((t, i) => `
           <button class="tp ${t === ((S.project || {}).title || '') ? 'on' : ''}" data-act="useTitle" data-arg="${i}">
             ${esc(t)}
           </button>`).join('')}
-      </div>` : `<div class="side-empty">粘进来就会出现可点的标题</div>`}
+      </div>` : `<div class="side-empty">AI 交稿时会把标题写进 data/titles.json，这里自动出现</div>`}
     ${newTitlesPending ? `
       <div class="note warn" style="margin-top:var(--s2)">
         AI 又交了 ${newTitlesPending.length} 个标题，
         你自己粘的那批不会被覆盖。<button class="pref-btn" data-act="takeNewTitles">换用 AI 这批</button>
       </div>` : ''}
+    <details class="acc acc-flat">
+      <summary>万一 AI 没给标题，我自己粘</summary>
+      <div class="in">
+        <button class="btn ghost sm block" data-act="taskTitle">复制「起标题」的要求</button>
+        <div class="task-out" id="task-title" style="display:none"></div>
+        <textarea class="input" id="title-in-del" rows="4"
+          placeholder="一行一个，粘进来就变成可点的按钮">${esc(titlePoolRaw || '')}</textarea>
+      </div>
+    </details>
 
     </div>
   </div>
@@ -3264,7 +3284,7 @@ function bind() {
     else if (t.id === 'foot') { S.project.foot = t.value; markDirty('project'); save(); refreshShip() }
     /* 交付面板的两个输入框。存模块级变量 + 防抖重绘，
        因为 renderWrite 会重建 DOM，DOM 上的 value 会被抹掉。 */
-    else if (t.id === 'title-in') Actions.keepTitlePool(t.value)
+    else if (t.id === 'title-in' || t.id === 'title-in-del') Actions.keepTitlePool(t.value)
     else if (t.id === 'as-fixreq') Actions.keepFixReq(t.value)
   })
   // 字数 / 文风下拉

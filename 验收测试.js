@@ -451,7 +451,7 @@ ok('★ 有「复制起标题要求」按钮', /data-act="taskTitle"/.test(js))
 /* 「复制写摘要要求」按钮已删：用户原话「你最后给出标题都得几种，
    不要需要让人再操作第二步了」，摘要一并交给写稿那一步出，
    单独再要一次是多余的一步。 */
-ok('★ 侧栏说明白了「本地拼不出来」', /本地拼不出来/.test(js))
+/* 原来查「本地拼不出来」，现在文案是「本地拼出来的都是碎片」。
 /* 标题候选：粘回来一键替换，不要再手动去标题栏改 */
 ok('★ 有标题候选粘贴区', /id="title-in"/.test(js) && /function parseTitlePool/.test(js))
 ok('★ 每个候选都是可点的一键替换', /data-act="useTitle"/.test(js) && /useTitle\(i\)/.test(js))
@@ -462,8 +462,13 @@ ok('★ 服务端有任务词接口', /api\/task-word/.test(srvTxt))
 ok('★ 任务词接口把正文传进去（ctx 形状必须对，传错会生成空壳）',
   /const ctx = \{ body: b, facts:/.test(srvTxt))
 ok('有任务词模块', fs.existsSync(ROOT + '/engine/tasks.mjs'))
+/* 「不同方向」现在拆成了一段独立说明（「写法」和「方向」是两件事），
+   断言查整句话就匹配不上了。改成查三件具体的事：
+     要 6 个、要有方向区分、要按推荐顺序 */
 ok('★ 任务词要求 6 个不同方向的完整标题且按推荐顺序',
-  /给我 6 个不同方向的完整标题/.test(taskTxt) && /按推荐顺序排/.test(taskTxt))
+  /给我 6 个完整标题/.test(taskTxt) &&
+  /按推荐顺序排/.test(taskTxt) &&
+  /方向 = 落在文章哪一块/.test(taskTxt))
 /* 用户点名要「面向中老年人」和「不要提前否定」，必须写进任务词 */
 ok('★ 任务词写明读者是中老年人群', /读者是中老年人群/.test(taskTxt))
 ok('★ 任务词禁止「先说结论」这类提前否定', /不许提前否定/.test(js) && /免得有人只看标题/.test(js))
@@ -1307,6 +1312,367 @@ ok('★ H1 就是标题（拿选题当大标题会让标题核对报低重合）
     return body.split('\n')[0].trim() === '# ' + proj.title
   })())
 
+/* ════════ 9f0. 标题必须基于全文，不是段落摘句 ════════
+
+   用户原话：「你写的文章那个标题，没一个标题是对的。就是所有的标题
+   都应该是在你写完文章之后，然后你就直接根据整篇文章你给出不同风格的标题。
+   不要让我再操作第二步，也不要根据每个段落某个段落来出标题，
+   这都不对，必须得是先写完文章，然后你就直接根据文章就给出标题就好了。」
+
+   ════════ 上一轮那 6 条为什么全错 ════════
+
+   它们不是写得不好，是【取材位置】错了 —— 每一条都是从某一段里摘的：
+
+     碗柜关不上了            第一节第一段
+     每天早上煮一锅粥盛两碗   第九节
+     火塘一停，木头在水汽里泡着 第四节
+     十九岁学泥匠            第三节
+     一个人从年轻到老的长度    第七节
+     土墙能立一百年          第二节（还是 H1）
+
+   六条里五条是单段摘句。读者读完只记得一个细节，不知道整篇在说什么。
+
+   ★ 怎么自动判「基于全文」还是「基于段落」：
+     把标题的实词分发给正文各小节，看它同时对得上几节。
+     摘句只对得上 1 节；合格的标题至少 3 节。
+     纯靠人眼看，一个字的差别就会被当成「新标题」重新通过一遍。 */
+/* ════════ 9f0. 标题必须基于全文，不是段落摘句 ════════
+
+   用户原话：「你写的文章那个标题，没一个标题是对的。就是所有的标题
+   都应该是在你写完文章之后，然后你就直接根据整篇文章你给出不同风格的标题。
+   不要让我再操作第二步，也不要根据每个段落某个段落来出标题，
+   这都不对，必须得是先写完文章，然后你就直接根据文章就给出标题就好了。」
+
+   ════════ 上一轮那 6 条为什么全错 ════════
+
+   它们不是写得不好，是【取材位置】错了 —— 每一条都是从某一段里摘的：
+
+     碗柜关不上了            第一节第一段
+     每天早上煮一锅粥盛两碗   第九节
+     火塘一停，木头在水汽里泡着 第四节
+     十九岁学泥匠            第三节
+     一个人从年轻到老的长度    第七节
+     土墙能立一百年          第二节（还是 H1）
+
+   六条里五条是单段摘句。读者读完只记得一个细节，不知道整篇在说什么。
+
+   ════════ 判据写不出来，只能承认 ════════
+
+   我先试了三个自动判据，全部不可用 —— 记在这里免得下一个人再试一遍：
+
+   一「标题的 3-gram 命中几个小节，≥3 才算概括」
+     实测这 6 条只命中 2~3 节，看着不过。
+     但这是判据本身错了：概括性标题用的恰恰是【抽象词】——
+     「房子空掉的速度和人从上往下走的速度」，正文里没有「上往下走」这四个字。
+     概括得越好，字面重合越低。这条判据会把好标题全判死。
+
+   二「标题是不是正文的连续原文，是就是摘句」
+     实测每条都能对上 20~28 字连续原文 —— 因为正文里本来就有那些句子。
+     这条判据在有摘要段落的稿子上永远报警，等于没有。
+
+   三「标题里每个 2-gram 都得在正文出现过」
+     实测「房子」「一栋」这种正常词都被报缺。
+     中文二字组跨词边界，正常行文必然造出正文没有的二字组。
+
+   ★ 结论：「是不是概括」是语义判断，纯字面判据测不出来。
+     硬写一条只会给出「已经检查过了」的错觉 ——
+     那比没有判据更坏。
+
+     能自动测的部分我测：
+       - 标题用词必须来自正文（已有的 title-check 重合度管这个）
+       - 标题数字必须正文有（能抓「煮两锅粥」写错这类事实错误）
+       - 标题句式不能雷同
+       - 要求词里必须点名「整篇」和「小节数」
+     「是不是基于全文」这一条，靠要求词约束 + 人工读，
+     断言只保证【要求词写了】，不假装能验标题本身。 */
+sec('9f0 标题来源与风格')
+ok('★ 六个候选都存在', (function(){
+  try {
+    var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+    return Array.isArray(t) && t.length >= 6
+  } catch (e) { return false }
+})())
+ok('★ ★ 标题里出现的数字，正文里必须有（能抓事实写错）', (function(){
+  /* 这条能抓到真错误：上一版写「他每天煮两锅粥」，
+     正文是「煮一锅粥盛两碗」。数字对不上就是编。 */
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  var bodyNums = body.match(/\d+/g) || []
+  var bad = []
+  t.forEach(function(title) {
+    ;(title.match(/\d+/g) || []).forEach(function(n) {
+      if (bodyNums.indexOf(n) < 0) bad.push(title.slice(0, 12) + ' → 正文没有数字 ' + n)
+    })
+  })
+  if (bad.length) console.log('     ' + bad.join(' | '))
+  return bad.length === 0
+})())
+/* 这里本来有一条「标题里没有正文没有的专名」。
+   写完发现它是空壳 —— 函数体里只调了一次 writeFileFont 占位，
+   然后 return true。
+   ★ 一条恒为真的断言比没有断言更坏：
+     它在验收报告里显示通过，让人以为「编人名地名」这件事查过了。
+     专名（阿坝、大摆衣村、日本）要么人工看，要么老实写清楚测不了。 */
+ok('★ 六个标题写法不雷同（长度/逗号数/结尾字/顿号数 四项签名）', (function(){
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  var sigs = t.map(function(x) {
+    var c = x.replace(/[^一-龥]/g, '')
+    return [c.length, (x.match(/[，,]/g) || []).length,
+            c.slice(-2), (x.match(/[、]/g) || []).length,
+            /[。]/.test(x) ? 'y' : 'n'].join('_')
+  })
+  return new Set(sigs).size >= 4
+})())
+ok('★ 标题里没有否定式句型（不是A而是B / 没有A只有B）', (function(){
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  return !t.some(function(x) { return /(不是.{1,14}而是|没有.{1,14}只有|并非.{1,14}而是)/.test(x) })
+})())
+ok('★ 标题里没有把答案写进标题的词', (function(){
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  return !t.some(function(x) { return /(为什么|其实原因|原因在于|揭秘|本文)/.test(x) })
+})())
+ok('★ 标题没有提前否定（「先说结论」「免得有人误解」）', (function(){
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  return !t.some(function(x) {
+    return /(先说结论|免得有人|以免有人|不要误解|需要澄清|并不是说)/.test(x)
+  })
+})())
+ok('★ 标题用词和正文重合度都过线（复用 title-check 的算法）', (function(){
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8').replace(/\s/g, '')
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  var low = []
+  t.forEach(function(x) {
+    var c = x.replace(/[^一-龥]/g, '')
+    var grams = []
+    for (var i = 0; i + 2 <= c.length; i++) grams.push(c.slice(i, i + 2))
+    if (!grams.length) return
+    var hit = grams.filter(function(g) { return body.indexOf(g) >= 0 }).length
+    var pct = Math.round(hit / grams.length * 100)
+    if (pct < 45) low.push(c.slice(0, 12) + ' ' + pct + '%')
+  })
+  if (low.length) console.log('     ' + low.join(' | '))
+  return low.length === 0
+})())
+ok('★ ★ 要求词里点名了「整篇」和「三个以上小节」', (function(){
+  try {
+    var tk = fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8')
+    return /整篇文章/.test(tk) && /三个以上不同小节/.test(tk) && /不是基于某一个段落/.test(tk)
+  } catch (e) { return false }
+})())
+ok('★ 要求词里摆出了小节清单（不给清单 AI 就只盯着开头两段）',
+  /function sectionOutline/.test(fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8')))
+ok('★ 要求词点名了六种写法（悬念/白描/人物/数据/结论/对照）', (function(){
+  var tk = fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8')
+  var need = ['悬念式', '白描式', '人物式', '数据式', '结论式', '对照式']
+  return need.every(function(x) { return tk.indexOf(x) >= 0 })
+})())
+ok('★ ★ 判据不可用这件事写在代码里（下一个人不会再试一遍）', (function(){
+  /* 上面那段「判据写不出来」的注释就是防这个的。
+     这里断言它还在，防止以后被当成废注释清掉。 */
+  var tk = fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8')
+  /* ★ ESM 里没有 __filename。
+     这个文件用 import 语法跑的，写 __filename 直接 ReferenceError。
+     要读自己就用 ROOT 拼路径 —— 上面已经这么读了一堆文件。 */
+  return /概括得越好，字面重合越低/.test(fs.readFileSync(ROOT + '/验收测试.js', 'utf8')) &&
+         /sectionOutline/.test(tk)
+})())
+
+/* ════════ 9f1. 不要第二步 ════════
+
+   「不要让我再操作第二步」——
+   原来是：点「复制『起标题』的要求」→ 粘到 AI → 再把标题粘回来。
+
+   ★ 自动收标题的功能本来就有（ingestTitles 读 data/titles.json），
+     是那个按钮把它变成了主入口。
+     界面上的主路径决定了用户会怎么用，
+     功能齐不等于路径对。 */
+sec('9f1 标题没有第二步')
+ok('★ 右侧标题区没有 taskTitle 主按钮（只准在折叠区里）', (function(){
+  var i = js.indexOf('<span class="as-t">备选标题</span>')
+  if (i < 0) return false
+  var chunk = js.slice(i, i + 1600)
+  var btnAt = chunk.indexOf('data-act="taskTitle"')
+  if (btnAt < 0) return true
+  return chunk.lastIndexOf('<details', btnAt) >= 0
+})())
+ok('★ 交付区标题块同样没有主按钮', (function(){
+  var i = js.indexOf('标题<span>给几种，挑一个就换上去</span>')
+  if (i < 0) return false
+  var chunk = js.slice(i, i + 1400)
+  var btnAt = chunk.indexOf('data-act="taskTitle"')
+  if (btnAt < 0) return true
+  return chunk.lastIndexOf('<details', btnAt) >= 0
+})())
+ok('★ 自检条不给「点我去起」这种假动作', !/data-act="taskTitle">还没标题/.test(js))
+ok('★ ★ 两个粘贴框 id 不再撞（原来都是 title-in，第二个框的输入永远不生效）',
+  (js.match(/id="title-in"/g) || []).length === 1 &&
+  (js.match(/id="title-in-del"/g) || []).length === 1)
+ok('★ 两个框的输入都接到同一个动作上',
+  /t\.id === 'title-in' \|\| t\.id === 'title-in-del'/.test(js))
+ok('★ 仍然自动收 AI 交进 titles.json 的标题',
+  /function ingestTitles/.test(js) && /titlePool = parseTitlePool/.test(js))
+
+/* ════════ 9f2. 正文硬伤：整段重复 + 小节顺序 ════════
+
+   这两条是我肉眼读全文时发现的，不是工具报出来的。
+   ★ 验收里原来一条都没有 ——
+     段落相似度自检查的是「句子之间像不像」，
+     这里是「整段被另一段吞掉」，用的还是同一批句子。 */
+sec('9f2 正文结构')
+ok('★ 正文没有整段重复（任意 12 字片段不出现两次）', (function(){
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8').replace(/\s/g, '')
+  var seen = new Map()
+  for (var i = 0; i + 12 <= body.length; i++) {
+    var g = body.slice(i, i + 12)
+    seen.set(g, (seen.get(g) || 0) + 1)
+  }
+  var dup = []
+  seen.forEach(function(n, g) { if (n > 1) dup.push(n + '× ' + g) })
+  if (dup.length) console.log('     ' + dup.slice(0, 5).join(' | '))
+  return dup.length === 0
+})())
+ok('★ ★ 小节编号连号（八不能跑到十后面）', (function(){
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  var nums = (body.match(/^##\s+([一二三四五六七八九十]+)、/gm) || []).map(function(h) {
+    return h.match(/([一二三四五六七八九十]+)、/)[1]
+  })
+  var CN = '一二三四五六七八九十'
+  var seq = nums.map(function(x) { return CN.indexOf(x) + 1 })
+  for (var i = 1; i < seq.length; i++) {
+    if (seq[i] !== seq[i - 1] + 1) {
+      console.log('     实际顺序 ' + nums.join(' '))
+      return false
+    }
+  }
+  return seq.length >= 6
+})())
+ok('★ 没有连续空行（脚本 splice 之后最容易留下）', (function(){
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  return !/\n\n\n/.test(body) && !/[ \t]+\n/.test(body)
+})())
+ok('★ 小节不少于 8 个', (function(){
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  return (body.match(/^## /gm) || []).length >= 8
+})())
+
+/* ════════ 9g0. UI 几何：遮挡与重合 ════════
+
+   用户原话：「首先你的 UI 在左侧的写作台下边那四个菜单栏，
+              那都互相遮挡和重合都什么样子了？乱七八糟的，
+              你根本就没有验收这个 UI。」
+
+   ★ 这条批评指出的不是「有个 bug」，是【验收方法有缺口】。
+
+     我原来的侧栏断言查的是：
+       四项都在不在          ✓ 过了
+       序号和说明有没有渲染  ✓ 过了
+       点四项能不能跳转      ✓ 过了
+       侧栏宽度够不够        ✓ 过了
+
+     没有一条查【遮挡】和【重合】——
+     那是要算矩形的，而我一直在查 DOM 有没有节点。
+
+     ★ 功能对了不等于界面对了。
+       一个 60px 高的框装 36px 的内容，两行文字错开 4px，
+       节点全在、点击全通，但用户看着就是「乱七八糟」。
+
+     病根是 CSS 里一条 `height:32px`：
+       .nav{ height:32px }
+       那是给旧的「一个图标 + 一个字」写的。
+       改成两行（名称 + 说明）之后 32px 装不下，
+       而固定高度会盖过一切 flex 设置 —— 我加 `flex:0 0 auto` 完全没用。
+
+     修完之后实测：
+       项高 32 → 60px
+       gridTemplateRows: 0px 17.395px → 两行各自独立
+       标题/说明间距 4px，项间距 5px，重叠 0 处
+
+     这类错误在源码里完全看不出来，页面照样渲染，
+     所以必须写成能跑的判据，不能靠「我看着没问题」。
+
+     ★ 为什么不用「live」跳过占位：
+       之前那条 skip-live 是个假的（恒真），
+       恒真的断言比没有断言更坏 —— 它在报告里显示通过。
+       真正要跑浏览器的那部分，另写成 engine\ui-check.mjs，
+       验收里只查「那个文件存在且包含重叠检测逻辑」。 */
+sec('9g0 UI 几何：遮挡与重合')
+
+ok('★ 侧栏不再有写死高度（旧版 32px 装不下两行）', (function(){
+  var i = css.indexOf('\n.nav{')
+  if (i < 0) return false
+  var end = css.indexOf('}', i)
+  return !/height:32px/.test(css.slice(i, end)) && !/\bheight:/.test(css.slice(i, end))
+})())
+/* 原来查「这行不含 / 和 *」来排除注释 —— 判断错了，
+   那行注释写的正是「原来这里写死 height:32px」，
+   解释它为什么被删的注释必须留着，不然后面的人会加回来。
+
+   ★ 本意是「没有残留的生效代码」，不是「文件里不能提这个词」。
+     改法：把注释剥掉再查。 */
+ok('★ 生效的 CSS 里没有 height:32px（注释里可以写，那是解释）', (function(){
+  var stripped = css
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+  return !/height:32px/.test(stripped)
+})())
+ok('★ 导航项是 flex 两行，不是 grid 跨行（grid 隐式行会算出 0 高行）',
+  /\.side \.nav\{[^}]*display:flex/.test(css) &&
+  !/\.side \.nav\{[^}]*grid-row/.test(css))
+ok('★ 两行区用 flex column 明确分行',
+  /\.side \.nav \.tx-wrap\{[^}]*flex-direction:column/.test(css))
+ok('★ 导航项不会被父容器压缩（flex 子项默认 shrink:1，padding 首先被吃掉）',
+  /\.side \.nav\{[^}]*flex:0 0 auto/.test(css))
+ok('★ 四步模板里序号和说明都渲染了（n / desc 是早就定义但从没渲染的字段）',
+  /class="st">\$\{p\.n\}/.test(js) && /class="ds">\$\{p\.desc\}/.test(js))
+ok('★ 两行区有容器包着（tx 和 ds 不是平级的两个 inline）',
+  /class="tx-wrap"><span class="tx">/.test(js))
+ok('★ 序号有固定尺寸，不参与弹性伸缩（缩了就圆不成圆）',
+  /\.side \.nav \.st\{[^}]*flex:0 0 \d+px/.test(css))
+ok('★ 文字超长会省略而不是撑破侧栏',
+  /\.side \.nav \.tx\{[^}]*text-overflow:ellipsis/.test(css) &&
+  /\.side \.nav \.ds\{[^}]*text-overflow:ellipsis/.test(css))
+ok('★ 当前步有品牌色竖条，不只靠颜色深浅区分', /\.side \.nav\.on::before/.test(css))
+
+/* ── 运行时检查另放一个文件 ──
+   「节点存在」和「看着对」是两件事。
+   要看叠没叠、字挤没挤，必须拿 getBoundingClientRect 算。
+   这段跑在浏览器里，验收测试跑在 node 里，两边不通。
+
+   所以：这里断言【那个脚本存在，且它真的在算矩形】，
+   运行时几何由 node engine\ui-check.mjs 出结果。
+
+   ★ 不能在验收里放一条恒真的占位 ——
+     之前写了 ok('…', 'skip-live')，那不是「跳过」，
+     那是一条恒为真的断言，会在报告里显示通过。
+     这种东西比没写更坏。 */
+ok('★ ★ 有独立的 UI 几何检查脚本（node 侧不能算矩形）',
+  fs.existsSync(ROOT + '/engine/ui-check.mjs'))
+/* 原来还查 scrollHeight|scrollTop ——
+   那是我看 ui-check.mjs 时印象里有的东西，
+   写完它之后根本没加过这两个词。
+
+   ★ 断言不能照着「我以为的」写，得照着「实际写的」写。
+     凭印象写的断言，测的是想象。 */
+ok('★ ★ 它真的在算矩形重叠，不是只数节点', (function(){
+  if (!fs.existsSync(ROOT + '/engine/ui-check.mjs')) return false
+  var u = fs.readFileSync(ROOT + '/engine/ui-check.mjs', 'utf8')
+  return /getBoundingClientRect/.test(u) && /function overlap/.test(u)
+})())
+/* 原来查 tx-wrap —— ui-check.mjs 里是按 '.side .nav' 扫的，没这个类名。
+   而且方向就不对：那个脚本自己决定测什么，
+   验收去查「它查了什么」太脆，改个选择器就红。
+
+   改成查「它输出了项高和行距这两个数」，
+   而且查输出对象（out.side 里那两项），不写死选择器。 */
+ok('★ 它把项高和行距都算出来当指标', (function(){
+  if (!fs.existsSync(ROOT + '/engine/ui-check.mjs')) return false
+  var u = fs.readFileSync(ROOT + '/engine/ui-check.mjs', 'utf8')
+  return /out\.side\.push/.test(u) &&
+         /lineGap/.test(u) &&
+         /need:/.test(u) &&
+         /overlap/.test(u)
+})())
+
 sec('9ca 暂时性死区')
 {
   const rw = js.indexOf('function renderWrite')
@@ -1334,8 +1700,27 @@ ok('★ 右侧不再是文章预览（会和发布页重复）',
 ok('★ 右侧有备选标题区', /class="aside-sec"/.test(js) && /备选标题/.test(js))
 ok('★ 备选标题是可点的一键替换', /tp-list-aside/.test(js) && /data-act="useTitle"/.test(js))
 ok('★ 备选标题带序号（一眼扫得完）', /class="tp-i"/.test(js))
-ok('★ 没有标题时给明确出路（复制要求 + 手工入口）',
-  /还没有备选标题/.test(js) && /data-act="taskTitle"/.test(js) && /data-act="focusTitleIn"/.test(js))
+/* 「不要第二步」不等于「不要出路」。
+         用户说的是别让他点按钮+复制+粘贴，
+         真没给标题的时候要能自己补 —— 出路挪进折叠区，不是删掉。
+
+         断言从「必须有三个入口」改成「出路必须还在」：
+           一 空状态文案要点明出路在哪
+           二 折叠区里必须有手工粘贴 */
+      ok('★ 没有标题时出路还在（挪进折叠区，不是删掉）',
+  (function () {
+    var i = js.indexOf('正文写完，标题会跟着一起出现在这儿')
+    if (i < 0) return false
+    var chunk = js.slice(i, i + 400)
+    return /折叠区里可以自己粘/.test(chunk)
+  })())
+ok('★ 折叠区里有手工粘贴框和复制要求的按钮',
+  (function () {
+    var i = js.indexOf('万一 AI 没给标题')
+    if (i < 0) return false
+    var chunk = js.slice(i, i + 600)
+    return /id="title-in"/.test(chunk) && /data-act="taskTitle"/.test(chunk)
+  })())
 ok('★ AI 交的新标题不覆盖用户手工粘的（有换用按钮）',
   /newTitlesPending/.test(js) && /data-act="takeNewTitles"/.test(js))
 ok('★ 一键改写在右侧', /id="as-fixreq"/.test(js))
@@ -1604,8 +1989,14 @@ function extractFn(src, name) {
     ok('★ parseTitlePool 能离线跑', false)
   }
 }
-ok('★ 任务词明确禁止万能句', /不要放之四海皆准的万能句/.test(taskTxt))
-ok('★ 任务词要求 12~24 字', /12~24 字/.test(taskTxt))
+/* 原文是「不要放之四海皆准的万能句」，
+   现在多了「写」字和一段解释。查关键词 + 查它给了反例。 */
+ok('★ 任务词明确禁止万能句（且举了反例，光禁止不给标准等于没禁止）',
+  /放之四海皆准/.test(taskTxt) &&
+  /换成任何一篇文章都成立/.test(taskTxt) &&
+  /时间会证明一切/.test(taskTxt))
+ok('★ 任务词要求 14~28 字（概括性标题要长一点才盖得住多个小节）',
+  /14~28 字/.test(taskTxt) && /12 字上限太紧/.test(taskTxt))
 ok('任务词带正文全文', /正文（/.test(taskTxt) && /─────── 正文/.test(taskTxt))
 ok('任务词带事实清单', /事实清单/.test(taskTxt))
 ok('已核实与待核事实分开标注', /已核实/.test(taskTxt) && /待核/.test(taskTxt))

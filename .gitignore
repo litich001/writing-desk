@@ -13,3 +13,5 @@ data/*.bak
 # data/project.json
 # data/body.md
 # data/facts.json
+
+ui-probe.js
