@@ -2909,6 +2909,54 @@ const DASH_RE = /——|(?<!-)--(?!-)/g
 
 /* 掩码：把白名单位置换成等长空格，下标和原文一一对应，
    这样 sample 不会错位、n_hit 不会算多。 */
+/* ---------- 各风格特有的 AI 套话 ----------
+   实测（engine/cliche-test.mjs）：通用禁令抓不到这些。
+     biz / sharp / person / story 四种风格的套话完全放行。
+   「每种文风 AI 味浓」的真正原因不是通用规则不够严，
+   是风格层根本没有词汇表。
+
+   ★ 这份表必须和 engine/styles.mjs 的 STYLE_CLICHE 一一对应，
+     改一处就要改另一处 —— 9d8 那条断言比对两边的键名。 */
+const STYLE_CLICHE = {
+  biz: [/赋能|闭环|抓手|颗粒度|护城河|心智|生态位|增长飞轮|卡位|破圈|私域|链路打通|顶层设计/, /本质上|底层逻辑|商业闭环|价值重构|模式升级/],
+  sharp: [/韭菜|镰刀|收割|吊打|降维打击|降智|吃相难看|打脸现场|子弹飞/, /资本(永远|从来)(贪婪|吃相难看)|资本的原罪|毒瘤/],
+  person: [/画卷|定格|注脚|镌刻|岁月静好|定格在时光|成为他人生的/, /那一刻，时间仿佛静止|泪目|破防了/],
+  explain: [/本质上|底层逻辑|颗粒度|生态位|闭环了|抽象出来看/, /三个维度|两个层面|一套方法论/],
+  news: [/据悉|记者获悉|业内人士表示|引发(了)?(广泛|社会)?关注|或将带来|未来可期|深远影响/, /高度重视|大力推进|扎实开展|积极营造/],
+  warm: [/温暖了那个|时间仿佛静止|愿每一个人|愿天下|岁月静好|治愈了你/, /那一刻|仿佛全世界|定格在/],
+  talk: [/绝了|太真实了|家人们|yyds|冲冲冲|听我说|真的服了/, /怎么说呢|怎么说吧|懂的都懂/],
+  crit: [/乱象|形式主义|责任缺位|亟待|亟需|究其根源|任重道远|久久为功/, /令人忧虑|值得深思|亟需引起/],
+  story: [/多年以后他才明白|多年以后.{0,6}才明白|这一切都要从.{0,8}说起|命运的天平/, /多年以后.{0,10}他再也没有|从那以后.{0,8}一切都/],
+  cold: [/据悉|记者获悉|业内人士|引发关注|未来可期|深远影响/, /高度重视|大力推进|扎实开展/]
+}
+
+/* 各风格的中文名，给提示文案用。 */
+const STYLE_CN_HINT = {
+  warm: '有温度', sharp: '犀利时评', person: '人物特稿', story: '故事叙事',
+  talk: '口语闲谈', crit: '批评评论', explain: '硬核拆解', biz: '商业观察',
+  news: '新闻快评', cold: '冷静收束'
+}
+
+/* 查当前稿子的风格套话。styleId 从 project.style 来。 */
+function scanCliche(text, styleId) {
+  const list = STYLE_CLICHE[styleId]
+  if (!list) return []
+  const cn = STYLE_CN_HINT[styleId] || styleId
+  const out = []
+  list.forEach((re, i) => {
+    const m = String(text || '').match(re)
+    if (!m) return
+    out.push({
+      n: cn + '套话',
+      lv: 'md',
+      n_hit: m.length,
+      sample: m[0],
+      tip: '「' + m[0] + '」是' + cn + '这一风格最常见的 AI 套话。换成具体的名词和数字。'
+    })
+  })
+  return out
+}
+
 function maskPunct(text) {
   return text.replace(PUNCT_OK, m => ' '.repeat(m.length))
 }
@@ -3025,6 +3073,11 @@ function scan(text) {
     if (r.per100 && m.length / len100 <= r.per100) return
     hits.push({ ...r, n_hit: m.length, sample: (m[0] || '').slice(0, 30).trim() })
   })
+  /* 风格层套话并进 hits。
+     接入点选在 scan() 里（而不是每个消费方各自加一遍），
+     自检面板、右侧摘要、概要条三处自动一致。 */
+  const cl = scanCliche(text, (S.project && S.project.style) || '')
+  if (cl.length) hits.push(...cl)
   const paras = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 20)
   let sd = null
   if (paras.length >= 5) {

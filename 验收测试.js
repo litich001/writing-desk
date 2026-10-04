@@ -614,8 +614,18 @@ ok('★ 手册标注了标点的四种合法用法（图注/来源表/表格/直
   /* 手册的风格表必须和 styles.mjs 一一对应。
      只取第 7 节那一段 —— 手册里还有一张 type 表（write/rewrite/…），
      整篇匹配会把它也抓进来当成风格。 */
+  /* 手册的风格表必须和 styles.mjs 一一对应。
+     第 7 节现在有两张表（风格说明 + 风格 × AI 黑话），
+     按表取，不整节抓 —— 整节抓会把两张表都算进来，数字翻倍。
+
+     ★ 断言的范围要跟着文档结构走。文档加了一张表它就该失准，
+       这不是断言坏了，是它该被修。 */
   const sec7 = manual.slice(manual.indexOf('## 7. 写作风格'), manual.indexOf('## 8.'))
-  const manualIds = [...sec7.matchAll(/^\| `(\w+)` \|/gm)].map(m => m[1])
+  const rows7 = [...sec7.matchAll(/^\| `(\w+)` \|/gm)].map(m => m[1])
+  /* 第 7 节有两张表（风格说明 + 风格 × AI 黑话）。
+     取第一张 —— 从第一次出现到第二次出现。
+     ★ 定位要锚在稳定结构上，「第几个 ###」会随文档增删漂移。 */
+  const manualIds = rows7.slice(0, rows7.length / 2)
   ok('★ 手册列的风格和 styles.mjs 完全一致',
     styleIds.length === manualIds.length &&
     styleIds.every(x => manualIds.includes(x)) && manualIds.every(x => styleIds.includes(x)),
@@ -1045,6 +1055,76 @@ ok('★ 高相似度段落也不重复（去掉加粗标记后仍相同）',
     var dup = 0
     paras.forEach(function(p) { if (seen.has(p)) dup++; else seen.add(p) })
     return dup === 0
+  })())
+
+/* ════════ 9d8. 各风格特有的 AI 套话 ════════
+   用户原话「每一种写作文风都要改，AI 味特别浓」。
+
+   这一轮查出来真正的缺口：
+   通用禁令抓的是所有风格共有的毛病（标点、否定式、预设），
+   但每种文风有它自己那套黑话：
+
+     商业观察  赋能 闭环 抓手 颗粒度 护城河 心智 生态位
+     犀利时评  韭菜 镰刀 收割 降维打击 吊打 吃相
+     人物特稿  画卷 定格 注脚 镌刻 岁月静好
+     硬核拆解  本质上 底层逻辑 颗粒度 生态位
+     新闻快评  据悉 记者获悉 业内人士 引发广泛关注
+     口语闲谈  绝了 太真实了 家人们 yyds
+     批评评论  乱象 形式主义 责任缺位 亟待
+     有温度    温暖了那个冬天 时间仿佛静止 愿每一个人
+     故事叙事  多年以后他才明白 这一切都要从
+     冷静收束  据悉 记者获悉 业内人士
+
+   实测（engine/cliche-test.mjs）：
+     biz / sharp / person / story 四种完全放行，一处都没抓。
+     其余五种靠通用规则误打误撞抓到的，不是靠风格判据。
+
+   ★ 这才是「每种文风 AI 味浓」的真正原因 ——
+     不是通用规则不够严，是风格层根本没有词汇表。
+     通用规则再严也抓不到「赋能」—— 它只会在商业稿里出现，
+     而通用规则里没有这个词。 */
+sec('9d8 风格套话表')
+ok('★ styles.mjs 有 STYLE_CLICHE（风格层的词汇表）',
+  /export const STYLE_CLICHE/.test(sty))
+ok('★ app.js 也有同一份（用户看到的是前端自检）',
+  /const STYLE_CLICHE/.test(js) && /function scanCliche/.test(js))
+ok('★ ★ 两份表的风格键完全一致（改一处必须改另一处）',
+  (function(){
+    var a = (sty.match(/export const STYLE_CLICHE = \{[\s\S]*?\n\}/) || [''])[0]
+    var b = (js.match(/const STYLE_CLICHE = \{[\s\S]*?\n\}/) || [''])[0]
+    if (!a || !b) return false
+    var keys = s => (s.match(/^  ([a-z]+): \[/gm) || []).map(x => x.trim().split(':')[0]).sort().join(',')
+    return keys(a) === keys(b)
+  })())
+ok('★ 十种风格都有词汇表', (function(){
+  var a = (sty.match(/export const STYLE_CLICHE = \{[\s\S]*?\n\}/) || [''])[0]
+  return (a.match(/^  [a-z]+: \[/gm) || []).length === 10
+})())
+ok('★ checkCliche 已接进 checkStyle（结果并进 aiHits）',
+  /checkCliche\(text, styleId\)/.test(sty) && /ai\.hits\.push\(\.\.\.cliche\)/.test(sty))
+ok('★ scanCliche 已接进 scan（接入点只有一处）',
+  /const cl = scanCliche\(text,/.test(js) && (js.match(/scanCliche\(text,/g) || []).length === 2)
+ok('★ STYLE_CLICHE 在 scan 之前声明（TDZ，这个坑栽过七次）',
+  js.indexOf('const STYLE_CLICHE') > 0 &&
+  js.indexOf('const STYLE_CLICHE') < js.indexOf('function scan(text)'))
+
+/* 判据写完不测等于没写 —— 这轮就是靠这个测出缺口的 */
+ok('★ 有 cliche-test.mjs（十种风格的套话逐个验）',
+  fs.existsSync(ROOT + '/engine/cliche-test.mjs'))
+ok('★ cliche-test 同时验「必须抓到」和「不能误伤合格稿」',
+  (function(){
+    var t = fs.readFileSync(ROOT + '/engine/cliche-test.mjs', 'utf8')
+    return /各风格的 AI 套话现在抓得到吗/.test(t) && /不该被任何风格误伤/.test(t)
+  })())
+
+/* 套话表的共同毛病：都是「抽象大词」，而项目本来就有「具体动作/数字」的判据。
+   两条要一起看，光查黑名单会漏掉没进表的那些。 */
+ok('★ 每种风格仍保留「必有」判据（不能只靠黑名单）',
+  (function(){
+    var m = sty.match(/export const STYLES = \{[\s\S]*\n\}/)
+    if (!m) return false
+    var n = (m[0].match(/require: \[/g) || []).length
+    return n >= 10
   })())
 
 sec('9ca 暂时性死区')

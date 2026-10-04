@@ -218,6 +218,82 @@ export function aiSmell(text) {
   return { hits, uniformity, paraCount: paras.length }
 }
 
+/* ── 各风格特有的 AI 套话 ──────────────────────────────────
+   通用禁令抓的是所有风格共有的毛病（标点、否定式、预设），
+   但每种文风有它自己那套黑话：
+
+     商业观察  赋能 闭环 抓手 颗粒度 护城河 心智 生态位
+     犀利时评  韭菜 镰刀 收割 降维打击 吊打 吃相
+     人物特稿  画卷 定格 注脚 镌刻 岁月静好
+     硬核拆解  本质上 底层逻辑 颗粒度 生态位
+     新闻快评  据悉 记者获悉 业内人士 引发广泛关注
+     口语闲谈  绝了 太真实了 家人们 yyds 冲
+     批评评论  乱象 形式主义 责任缺位 亟待
+     有温度    温暖了那个冬天 时间仿佛静止 愿每一个人
+     故事叙事  多年以后他才明白 这一切都要从
+
+   实测（engine/cliche-test.mjs）：
+     biz / sharp / person / story 四种完全放行，一处都没抓。
+     其余五种是靠通用规则误打误撞抓到的，不是靠风格判据。
+
+   ★ 这才是「每种文风 AI 味浓」的真正原因 ——
+     不是通用规则不够严，是风格层根本没有词汇表。
+   ───────────────────────────────────────────────────────── */
+export const STYLE_CLICHE = {
+  biz: [
+    { n: '商业黑话', re: /赋能|闭环|抓手|颗粒度|护城河|心智|生态位|增长飞轮|卡位|破圈|私域|链路打通|顶层设计/g },
+    { n: '空泛商业词', re: /本质上|底层逻辑|商业闭环|价值重构|模式升级/g }
+  ],
+  sharp: [
+    { n: '情绪化骂战', re: /韭菜|镰刀|收割|吊打|降维打击|降智|吃相难看|打脸现场|子弹飞/g },
+    { n: '空泛愤怒', re: /资本(永远|从来)(贪婪|吃相难看)|资本的原罪|毒瘤/g }
+  ],
+  person: [
+    { n: '抒情套话', re: /画卷|定格|注脚|镌刻|岁月静好|life 静好|定格在时光|成为他人生的/g },
+    { n: '空洞抒情', re: /那一刻，时间仿佛静止|泪目|破防了/g }
+  ],
+  explain: [
+    { n: '拆解黑话', re: /本质上|底层逻辑|颗粒度|生态位|闭环了|抽象出来看/g },
+    { n: '伪量化', re: /三个维度|两个层面|一套方法论/g }
+  ],
+  news: [
+    { n: '通稿腔', re: /据悉|记者获悉|业内人士表示|引发(了)?(广泛|社会)?关注|或将带来|未来可期|深远影响/g },
+    { n: '官样措辞', re: /高度重视|大力推进|扎实开展|积极营造/g }
+  ],
+  warm: [
+    { n: '温情套话', re: /温暖了那个|时间仿佛静止|愿每一个人|愿天下|岁月静好|治愈了你/g },
+    { n: '空泛抒情', re: /那一刻|仿佛全世界|定格在/g }
+  ],
+  talk: [
+    { n: '网络口水话', re: /绝了|太真实了|家人们|yyds|无内(狗头)|冲冲冲|听我说|真的服了/g },
+    { n: '语气词堆砌', re: /怎么说呢|怎么说吧|懂的都懂/g }
+  ],
+  crit: [
+    { n: '公文套话', re: /乱象|形式主义|责任缺位|亟待|亟需|究其根源|任重道远|久久为功/g },
+    { n: '空泛批评', re: /令人忧虑|值得深思|亟需引起/g }
+  ],
+  story: [
+    { n: '回忆体套话', re: /多年以后他才明白|多年以后.{0,6}才明白|这一切都要从.{0,8}说起|命运的天平/g },
+    { n: '抒情收尾', re: /多年以后.{0,10}他再也没有|从那以后.{0,8}一切都/g }
+  ],
+  cold: [
+    { n: '通稿腔', re: /据悉|记者获悉|业内人士|引发关注|未来可期|深远影响/g },
+    { n: '官样措辞', re: /高度重视|大力推进|扎实开展/g }
+  ]
+}
+
+/** 查某个风格的 AI 套话。风格层没有词汇表，通用规则就抓不到它。 */
+export function checkCliche(text, styleId) {
+  const list = STYLE_CLICHE[styleId]
+  if (!list) return []
+  const out = []
+  for (const c of list) {
+    const m = text.match(c.re)
+    if (m) out.push({ n: c.n, n_hit: m.length, sample: m[0], lv: 'md' })
+  }
+  return out
+}
+
 /* ---------- 各风格的量化定义 ---------- */
 export const STYLES = {
   /* ── 默认风格 ──
@@ -400,6 +476,13 @@ export function checkStyle(text, styleId) {
 
   const ai = aiSmell(text)
 
+  /* 风格层套话并进 aiHits。
+     这样 pass 判定、评分、verdict 全都不用动 ——
+     接入点选在「结果产生处」而不是「消费处」，
+     下游三处不用同步改，漏一处的机会就没了。 */
+  const cliche = checkCliche(text, styleId)
+  if (cliche.length) ai.hits.push(...cliche)
+
   const forbids = st.forbid.map(f => {
     const m = text.match(f.re)
     return { n: f.n, hit: !!m, n_hit: m ? m.length : 0, why: f.why }
@@ -445,6 +528,7 @@ export function checkStyle(text, styleId) {
     score,
     punctHits,
     shared,
+    cliche,
     aiHits: ai.hits,
     forbids,
     requires,
