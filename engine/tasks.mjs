@@ -1,5 +1,8 @@
+import { outline as mineOf } from './title-mine.mjs'
+
 /**
  * 交给 AI 的活：构造任务词
+ *
  *
  * 分工原则（本项目最重要的架构决定）
  * ────────────────────────────────────────────
@@ -48,7 +51,7 @@ function factBlock(facts, limit = 12) {
 export function titleTask(ctx, st) {
   const body = String(ctx.body || '')
   const chars = body.replace(/\s/g, '').length
-  const outline = sectionOutline(body)
+  const mine = outlineOf(body)
   return [
     '稿子已经写完了。现在通读全文，给标题。',
     '',
@@ -101,8 +104,8 @@ export function titleTask(ctx, st) {
     '─────── 正文（' + chars + ' 字）───────',
     body.trim(),
     '',
-    '─────── 这篇稿子的小节（判断标题要覆盖哪几节用）───────',
-    outline,
+    '─────── 这篇稿子的素材清单 ───────',
+    mine,
     '',
     '─────── 事实清单 ───────',
     factBlock(ctx.facts),
@@ -113,28 +116,73 @@ export function titleTask(ctx, st) {
 }
 
 /**
- * 列出正文的小节结构。
+ * 把「素材清单」渲染成给 AI 看的一段文字。
  *
- * ★ 为什么加这个：AI 拿一整篇三千字，容易只盯着开头两段和某一段细节。
- *   把小节清单摆在要求里，它才会想到「这个标题要盖住哪几节」。
- *   上一版给的六条标题全是单段摘句，就是因为清单没摆出来。
+ * ════════ 为什么是清单而不是「请基于全文」 ════════
+ *
+ * 前面三轮都试过用文字要求：
+ *   第一轮  列了要求 → AI 还是摘句
+ *   第二轮  加了「必须覆盖三个小节」→ AI 标的标题只对得上 2 节
+ *   第三轮  加了六种写法 → 句式变了，还是摘句
+ *
+ * 不是 AI 不听话，是这件事一次做不到：
+ * 读三千字，同时记住每个字出现在哪几节，
+ * 还要当场组合出六种句式 —— 人做不到，稳定做到也难。
+ *
+ * ★ 所以把它算好再给它。
+ *   贯穿全文的字是哪些、事实有哪些、人物做了什么、加粗了哪几句 ——
+ *   全部预先列出来，AI 只需要组合。
+ *
+ *   「列表里没有的东西，挑不出来」——
+ *   这句约束比「请基于全文」有力得多，
+ *   因为它把「基于全文」从态度变成了可选集。
+ *
+ * ★ 顺带记一件事，说明为什么【不能】用字面判据去验标题：
+ *   验收里试过「标题的 3-gram 跨了几个小节，≥3 才算概括」，
+ *   看着很合理，实测会把好标题全判死 ——
+ *   概括性标题用的恰恰是抽象词（「上往下走」正文里根本没有这四个字），
+ *   概括得越好，字面重合越低。
+ *   下面那句「不要改写正文的说法」也是同一个道理：
+ *   概括和贴原文是一对矛盾，要概括就得用新词，
+ *   所以只能要求「尽量用正文已有的词」，不能反过来用重合度去卡。
  */
-function sectionOutline(body) {
-  const out = []
-  const lines = String(body || '').split('\n')
-  lines.forEach((l, i) => {
-    const m = l.match(/^##\s*(.+)$/)
-    if (!m) return
-    /* 数一下这一节到下一节有多少字，AI 才知道哪几节是重点 */
-    let chars = 0
-    for (let k = i + 1; k < lines.length; k++) {
-      if (/^##\s/.test(lines[k])) break
-      if (/^---/.test(lines[k])) break
-      chars += lines[k].replace(/\s/g, '').length
-    }
-    out.push('  ' + m[1] + '（' + chars + ' 字）')
+function outlineOf(body) {
+  const o = mineOf(body)
+  const L = []
+  const cn = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
+
+  L.push('小节：')
+  o.sections.forEach((s, i) => {
+    L.push('  ' + (cn[i] || String(i + 1)) + '、' + s.title + '（' + s.chars + ' 字）')
   })
-  return out.length ? out.join('\n') : '  （这篇稿子没有分小节）'
+
+  L.push('')
+  L.push('贯穿全文的字（★ 这几个字是这篇稿子的主线，标题要围着它们组织）：')
+  L.push('  ' + o.crossings.map(c => c.char).join(' '))
+
+  L.push('')
+  L.push('事实（只能用这些数字，一个都不许编）：')
+  L.push('  ' + (o.facts.map(f => f.text).join('　') || '（这篇稿子里没有可用的数字）'))
+
+  L.push('')
+  L.push('人物：')
+  L.push('  身份：' + (o.roles.join('　') || '无'))
+  L.push('  做过的事：')
+  o.actions.slice(0, 8).forEach(a => L.push('    ' + a))
+
+  L.push('')
+  L.push('作者自己加粗的句子（这些是全文重点，标题的主题应该在里面）：')
+  o.bold.slice(0, 10).forEach(b => L.push('  ' + b))
+
+  L.push('')
+  L.push('★ 怎么用这份清单：')
+  L.push('  先从「贯穿全文的字」里挑出主线（这篇稿子主线是哪些字，一眼能看出来），')
+  L.push('  再从「事实」和「人物」里找能撑住这个主线的具体料，')
+  L.push('  最后拿「加粗句」确认自己抓的是全文重点而不是某一段的细节。')
+  L.push('')
+  L.push('  只从某一段里摘一句话出来 —— 那是摘句，不是标题。')
+
+  return L.join('\n')
 }
 
 /** 出摘要（公众号那 120 字）的要求 */

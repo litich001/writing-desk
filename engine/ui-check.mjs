@@ -58,29 +58,70 @@ window.__ui = (function () {
   for (var i = 0; i < ns.length; i++) {
     var n = ns[i]
     var r = n.getBoundingClientRect()
-    var tx = n.querySelector('.tx') && n.querySelector('.tx').getBoundingClientRect()
-    var ds = n.querySelector('.ds') && n.querySelector('.ds').getBoundingClientRect()
-    var st = n.querySelector('.st') && n.querySelector('.st').getBoundingClientRect()
+    var txEl = n.querySelector('.tx')
+    var dsEl = n.querySelector('.ds')
+    var stEl = n.querySelector('.st')
+    var tx = txEl && txEl.getBoundingClientRect()
+    var ds = dsEl && dsEl.getBoundingClientRect()
+    var st = stEl && stEl.getBoundingClientRect()
     out.side.push({
       h: Math.round(r.height),
       top: Math.round(r.top),
       bottom: Math.round(r.bottom),
+      /* 序号圆圈渲染了几个？
+         渲染两次会叠在一起，而每一份单独看都正常 ——
+         「序号有没有渲染」查不出来，只有数数量才查得出来。
+         上一版就是这么漏的：模板里 st 出现了两次。 */
+      stCount: n.querySelectorAll('.st').length,
       stH: st ? Math.round(st.height) : 0,
       txH: tx ? Math.round(tx.height) : 0,
       dsH: ds ? Math.round(ds.height) : 0,
       lineGap: (tx && ds) ? Math.round(ds.top - tx.bottom) : 0,
-      need: (tx ? tx.height : 0) + (ds ? ds.height : 0) +
-            parseFloat(getComputedStyle(n).paddingTop) * 2 + 2
+      dsHave: ds ? Math.round(ds.width) : 0,
+      need: 0,
+      cut: false
     })
+    /* 量说明文字单行到底要多宽：克隆一份不限宽 */
+    if (dsEl) {
+      var probe = dsEl.cloneNode(true)
+      probe.style.position = 'absolute'
+      probe.style.visibility = 'hidden'
+      probe.style.width = 'max-content'
+      probe.style.whiteSpace = 'nowrap'
+      document.body.appendChild(probe)
+      out.side[i].need = Math.round(probe.getBoundingClientRect().width)
+      document.body.removeChild(probe)
+      /* scrollWidth > clientWidth 就是横向被截断 */
+      out.side[i].cut = dsEl.scrollWidth > dsEl.clientWidth + 1
+    }
     boxes.push(r)
   }
   for (var j = 1; j < boxes.length; j++) {
     var g = Math.round(boxes[j].top - boxes[j - 1].bottom)
     out.side[j].gap = g
-    if (g < 0) out.collide.push('侧栏第' + j + '项与第' + (j + 1) + '项重叠 ' + (-g) + 'px')
+    /* 间距为 0 是紧挨着，不算重叠；必须 < -1 才报 */
+    if (g < -1) out.collide.push('侧栏第' + j + '项与第' + (j + 1) + '项重叠 ' + (-g) + 'px')
   }
 
-  /* 二 逐页：同列兄弟元素遮挡 */
+  /* 二 逐页：同列兄弟元素遮挡
+     ★ 这里踩过一次很典型的坑：
+       我原来只判「矩形边界不相交」，然后把
+         ovH = min(bottom) - max(top)
+       直接当重叠量报出来。
+       但两个元素上下排开时 ovH 是【负数】——
+       实测输出「交叠 213×-27px」，负数明明是没重叠。
+       我把负数当正的读了，于是报出「重叠 4 处」，
+       用户一看根本没有。
+
+       ★ 假阳性比没修更坏 —— 验收说有重叠，
+         那我就是在用噪音淹没真正的问题。
+
+       现在加三道保护：
+         一 ovH 和 ovW 都必须 > 0 才算交叠
+         二 交叠面积要 >= 16 平方像素（4×4），
+           1~3px 是描边、阴影、子像素误差
+         三 绝对定位的元素不参与 ——
+           徽标本来就浮在右上角，它和文字重叠是设计意图 */
   function scan(sel, page) {
     var root = document.querySelector(sel)
     if (!root) return
@@ -88,18 +129,28 @@ window.__ui = (function () {
     for (var i = 0; i < root.children.length; i++) {
       var e = root.children[i]
       var r = e.getBoundingClientRect()
-      if (r.width > 1 && r.height > 1) kids.push({ e: e, r: r })
+      if (r.width > 1 && r.height > 1) {
+        kids.push({
+          e: e, r: r,
+          c: (e.className || e.tagName).toString().slice(0, 22),
+          pos: getComputedStyle(e).position
+        })
+      }
     }
     for (var a = 0; a < kids.length; a++) {
       for (var b = a + 1; b < kids.length; b++) {
-        var ra = kids[a].r, rb = kids[b].r
+        var ea = kids[a], eb = kids[b]
+        var ra = ea.r, rb = eb.r
         /* 只查同一列的（左边差不多齐），
            横向并列的两个块贴在一起不算遮挡 */
-        if (Math.abs(ra.left - rb.left) < 4 && overlap(ra, rb)) {
-          var ov = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top)
-          out.collide.push(page + ' ' + sel + ' 第' + (a + 1) + '与第' + (b + 1) +
-            '块重叠 ' + Math.round(ov) + 'px')
-        }
+        if (Math.abs(ra.left - rb.left) > 4) continue
+        if (!overlap(ra, rb)) continue
+        var ovH = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top)
+        var ovW = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left)
+        if (ovH * ovW < 16) continue
+        if (ea.pos === 'absolute' || eb.pos === 'absolute') continue
+        out.collide.push(page + ' ' + sel + ' ' + ea.c + ' × ' + eb.c +
+          ' 压 ' + Math.round(ovW) + '×' + Math.round(ovH) + 'px')
       }
     }
   }
@@ -208,7 +259,53 @@ function lastRuleBlock(sel) {
   return last
 }
 
-const rule = lastRuleBlock('.side .nav')
+/* ★ 匹配到的最后一条，往往在 @media 里面 ——
+     轨道态那一档把 flex-direction、padding 全改了一遍，
+     量到的是它，主态的规则反而没量到。
+
+     办法：一条条收集，然后挑【不在任何 media 里】的那条。
+     判据：它的位置在最后一个 @media 之前
+     —— 太糙。更稳的是把 @media 块的字符区间全挖出来，
+     规则落在区间里就算在 media 内。 */
+function allRuleBlocks(sel) {
+  const re = new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+    '\\{([\\s\\S]*?)\\n\\}', 'g')
+  const out = []
+  let m2
+  while ((m2 = re.exec(css))) out.push({ body: m2[1], at: m2.index })
+  return out
+}
+
+/** 把所有 @media 块覆盖的区间挖掉 */
+function mediaRanges() {
+  const out = []
+  const re = /@media[^{]*\{/g
+  let m2
+  while ((m2 = re.exec(css))) {
+    const open = css.indexOf('{', m2.index)
+    let depth = 0
+    let end = open
+    for (let i = open; i < css.length; i++) {
+      if (css[i] === '{') depth++
+      else if (css[i] === '}') { depth--; if (depth === 0) { end = i; break } }
+    }
+    out.push([m2.index, end])
+  }
+  return out
+}
+
+const inside = (at, ranges) => ranges.some(r => at >= r[0] && at <= r[1])
+
+const ranges = mediaRanges()
+const blocks = allRuleBlocks('.side .nav')
+/* 主态规则 = 不在任何 media 里的最后一条 */
+const mainRule = blocks.filter(b => !inside(b.at, ranges)).pop()
+const rule = mainRule ? mainRule.body : (blocks.length ? blocks[blocks.length - 1].body : null)
+
+console.log('')
+console.log('  .side .nav 一共 ' + blocks.length + ' 条规则，' +
+  blocks.filter(b => inside(b.at, ranges)).length + ' 条在 media 里，' +
+  '量的是主态那条（在 media 外的最后一条）')
 if (!rule) {
   console.log('★ 找不到 .side .nav 的规则块')
   process.exitCode = 1

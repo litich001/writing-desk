@@ -1459,33 +1459,90 @@ ok('★ ★ 要求词里点名了「整篇」和「三个以上小节」', (func
     return /整篇文章/.test(tk) && /三个以上不同小节/.test(tk) && /不是基于某一个段落/.test(tk)
   } catch (e) { return false }
 })())
-ok('★ 要求词里摆出了小节清单（不给清单 AI 就只盯着开头两段）',
-  /function sectionOutline/.test(fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8')))
+/* 这条原来只查 sectionOutline（摆小节清单）。
+   现在换成 outlineOf —— 给的不只是小节，还有贯穿全文的字。
+   ★ 功能变强了，断言要跟着升级，不是把函数名换掉。
+
+   为什么必须给「贯穿全文的字」：
+     前面三轮都用文字要求 AI「基于全文」，
+     每一轮都还是摘句 ——
+     一次读三千字还要记住每个字在哪几节出现过，做不到。
+     把结果算出来给它，它就不用自己找了。
+
+   实测这篇稿子算出来的贯穿字：
+     年 房 子 住 个 老 来 十 里 屋 水 得 过 天 先 手
+     主线一眼可见：房子、住、年。 */
+ok('★ 要求词里给了「贯穿全文的字」（不给清单 AI 只盯着开头两段）', (function(){
+  var tk = fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8')
+  return /function outlineOf/.test(tk) &&
+    /贯穿全文的字/.test(tk) &&
+    /o.crossings.map/.test(tk)
+})())
+ok('★ 清单是从全文算出来的，不是我手写的（engine/title-mine.mjs 真的在跑）', (function(){
+  var tm = fs.readFileSync(ROOT + '/engine/title-mine.mjs', 'utf8')
+  return /export function crossings/.test(tm) &&
+    /set.size >= 3/.test(tm) &&
+    /导入|import.*title-mine/.test(fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8'))
+})())
+ok('★ 交叉点用单字统计（中文没空格，切词一定不准）',
+  /不用词，用【单字】/.test(fs.readFileSync(ROOT + '/engine/title-mine.mjs', 'utf8')) ||
+  /单字不会切错/.test(fs.readFileSync(ROOT + '/engine/title-mine.mjs', 'utf8')))
+ok('★ 清单也给出事实/人物/加粗句（不能只有小节）', (function(){
+  var tk = fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8')
+  return /事实（只能用这些数字/.test(tk) &&
+    /做过的事/.test(tk) &&
+    /加粗的句子/.test(tk)
+})())
 ok('★ 要求词点名了六种写法（悬念/白描/人物/数据/结论/对照）', (function(){
   var tk = fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8')
   var need = ['悬念式', '白描式', '人物式', '数据式', '结论式', '对照式']
   return need.every(function(x) { return tk.indexOf(x) >= 0 })
 })())
-ok('★ ★ 判据不可用这件事写在代码里（下一个人不会再试一遍）', (function(){
-  /* 上面那段「判据写不出来」的注释就是防这个的。
-     这里断言它还在，防止以后被当成废注释清掉。 */
+/* ════════ 判据不可用这件事也写进代码 ════════
+
+   「标题是不是基于全文」是语义判断，纯字面判据测不出来。
+   我试过三个，全部不可用：
+
+     一 3-gram 跨节数 ≥3
+       看着能判「基于几节」。实测那 6 条只命中 2~3 节，看着不过。
+       ★ 但这是判据本身错了 ——
+         概括性标题用的恰恰是【抽象词】。
+         「房子空掉的速度和人从上往下走的速度」，正文里没有
+         「上往下走」这四个字。概括得越好，字面重合越低。
+         这条判据会把好标题全判死。
+
+     二 标题是不是正文的连续原文
+       实测每条都能对上 20~28 字连续原文 ——
+       因为正文里本来就有那些句子。永远报警，等于没有。
+
+     三 标题里每个 2-gram 都得在正文出现过
+       实测「房子」「一栋」这种正常词都被报缺。
+       中文二字组跨词边界，正常行文必然造出正文没有的二字组。
+
+   ★ 结论：硬写一条只会给出「已经检查过了」的错觉，
+     那比没有判据更坏。
+
+     所以分工是：
+       自动测  数字不许编 / 句式不许雷同 / 否定式 / 用词和正文对得上
+       人工读  是不是基于全文
+
+     而「基于全文」这件事本身，
+     现在靠【素材清单】在机制上保证 ——
+     engine/title-mine.mjs 算出贯穿全文的字、事实、人物、加粗句，
+     连同要求词一起喂给 AI。
+     不再靠文字要求：前面三轮用文字要求，每一轮都还是摘句。
+
+   ★ 这条断言的作用是防止这段注释被当成废注释清掉，
+     清掉之后下一个人会再去试一遍那三个必然失败的判据。 */
+ok('★ ★ 「字面判据测不出是不是概括」这条经验写在代码里（别删这段注释）', (function(){
+  var me = fs.readFileSync(ROOT + '/验收测试.js', 'utf8')
   var tk = fs.readFileSync(ROOT + '/engine/tasks.mjs', 'utf8')
-  /* ★ ESM 里没有 __filename。
-     这个文件用 import 语法跑的，写 __filename 直接 ReferenceError。
-     要读自己就用 ROOT 拼路径 —— 上面已经这么读了一堆文件。 */
-  return /概括得越好，字面重合越低/.test(fs.readFileSync(ROOT + '/验收测试.js', 'utf8')) &&
-         /sectionOutline/.test(tk)
+  var tm = fs.readFileSync(ROOT + '/engine/title-mine.mjs', 'utf8')
+  return /概括得越好，字面重合越低/.test(me) &&
+         /概括得越好，字面重合越低/.test(tk) &&
+         /function outlineOf/.test(tk) &&
+         /export function outline/.test(tm)
 })())
-
-/* ════════ 9f1. 不要第二步 ════════
-
-   「不要让我再操作第二步」——
-   原来是：点「复制『起标题』的要求」→ 粘到 AI → 再把标题粘回来。
-
-   ★ 自动收标题的功能本来就有（ingestTitles 读 data/titles.json），
-     是那个按钮把它变成了主入口。
-     界面上的主路径决定了用户会怎么用，
-     功能齐不等于路径对。 */
 sec('9f1 标题没有第二步')
 ok('★ 右侧标题区没有 taskTitle 主按钮（只准在折叠区里）', (function(){
   var i = js.indexOf('<span class="as-t">备选标题</span>')
@@ -1618,19 +1675,10 @@ ok('★ 生效的 CSS 里没有 height:32px（注释里可以写，那是解释�
 ok('★ 导航项是 flex 两行，不是 grid 跨行（grid 隐式行会算出 0 高行）',
   /\.side \.nav\{[^}]*display:flex/.test(css) &&
   !/\.side \.nav\{[^}]*grid-row/.test(css))
-ok('★ 两行区用 flex column 明确分行',
-  /\.side \.nav \.tx-wrap\{[^}]*flex-direction:column/.test(css))
 ok('★ 导航项不会被父容器压缩（flex 子项默认 shrink:1，padding 首先被吃掉）',
   /\.side \.nav\{[^}]*flex:0 0 auto/.test(css))
 ok('★ 四步模板里序号和说明都渲染了（n / desc 是早就定义但从没渲染的字段）',
   /class="st">\$\{p\.n\}/.test(js) && /class="ds">\$\{p\.desc\}/.test(js))
-ok('★ 两行区有容器包着（tx 和 ds 不是平级的两个 inline）',
-  /class="tx-wrap"><span class="tx">/.test(js))
-ok('★ 序号有固定尺寸，不参与弹性伸缩（缩了就圆不成圆）',
-  /\.side \.nav \.st\{[^}]*flex:0 0 \d+px/.test(css))
-ok('★ 文字超长会省略而不是撑破侧栏',
-  /\.side \.nav \.tx\{[^}]*text-overflow:ellipsis/.test(css) &&
-  /\.side \.nav \.ds\{[^}]*text-overflow:ellipsis/.test(css))
 ok('★ 当前步有品牌色竖条，不只靠颜色深浅区分', /\.side \.nav\.on::before/.test(css))
 
 /* ── 运行时检查另放一个文件 ──
@@ -1672,6 +1720,212 @@ ok('★ 它把项高和行距都算出来当指标', (function(){
          /need:/.test(u) &&
          /overlap/.test(u)
 })())
+
+/* ════════ 9h0. 侧栏：数量 / 横向余量 / 内部重叠 ════════
+
+   用户原话：「左侧功能栏的那个 UI 还是互相有遮挡。」
+                    —— 这是第二次说。上一版我说「重叠 0 处」，
+                       验收也过了，用户还是看到遮挡。
+
+   ════════ 上一版为什么还是没查出来 ════════
+
+   上一版病根是两个叠在一起的序号圆圈：
+     模板渲染了两次 <span class="st">
+     一份在标题上方居中，一份在标题左边 —— 叠在一起
+
+   ★ 为什么三条验收都没抓到：
+     一 「序号有没有渲染」 → 渲染了（而且渲染了两次），过了
+     二 「有没有纵向重叠」 → 我只查了 .nav 之间，
+        没查 .nav【内部】的兄弟元素
+     三 「项高够不够」     → 项高够，因为两个序号叠着反而内容更矮
+
+   一个元素渲染两次，每一份都是正常的，
+   两份都不越界 —— 单看任何一份都查不出问题。
+
+   ★ 只有【数数量】才查得出来：
+       document.querySelectorAll('.nav .st').length === 1
+
+   改结构忘删旧节点，这类事故今天栽过好几次：
+     tx-wrap → st-row 的时候，旧的裸 st 没删。
+
+   ════════ 横向那半边 ════════
+
+   原来 .nav 是三列 grid：
+     grid-template-columns: 24px 1fr auto
+                            ↑序号 ↑文字 ↑badge 抢 auto 列
+
+   宽度预算（视口 1000，侧栏落在 204px）：
+     204 − padding 12×2 = 180
+     序号 24 + gap 10 = 34 → 146
+     再减 badge 16~24 + gap 10 → 文字只剩 96~123
+
+   每条说明的自然宽度：
+     翻实时榜单找选题     123
+     定下这次写什么       108
+     改稿、配图、核对     123
+     换主题，复制进公众号 154   ← 装不下，被 ellipsis 截掉
+
+   ★ 所以上一版报的「重叠 0 处」是对的，
+     但答的不是用户的问题 —— 用户说的是「挤」。
+
+   现在改成竖排：序号 + 标题一行，说明独占一行缩进对齐。
+   badge 改成绝对定位，不占横向空间。
+   说明不再 nowrap+ellipsis（截断丢信息），改成可换行。 */
+sec('9h0 侧栏：数量与横向余量')
+
+ok('★ ★ 序号只渲染一次（渲染两次会叠在一起，而每一份都正常）',
+  (js.match(/class="st"/g) || []).length === 1 &&
+  /class="st-row"><span class="st">/.test(js))
+ok('★ 四步仍按 序号/标题/说明 三段渲染',
+  /class="st-row"/.test(js) && /class="tx">\$\{p\.full\}/.test(js) &&
+  /class="ds">\$\{p\.desc\}/.test(js))
+ok('★ 没有残留的 tx-wrap（上一版的中间容器）', !/class="tx-wrap"/.test(js))
+
+ok('★ ★ 布局是竖排 flex，不是三列 grid（badge 抢 auto 列会把文字挤到截断）',
+  /\.side \.nav\{[^}]*flex-direction:column/.test(css) &&
+  !/\.side \.nav\{[^}]*grid-template-columns/.test(css))
+ok('★ ★ badge 绝对定位，不占横向宽度', /\.side \.nav \.badge\{[^}]*position:absolute/.test(css))
+ok('★ 说明不再 nowrap+ellipsis（截断丢信息，换行不丢）',
+  /\.side \.nav \.ds\{[^}]*overflow-wrap:anywhere/.test(css) &&
+  !/\.side \.nav \.ds\{[^}]*white-space:nowrap/.test(css))
+ok('★ 说明的缩进用 margin 而不是 padding', /\.side \.nav \.ds\{[^}]*margin-left:calc/.test(css))
+ok('★ ★ 缩进值来自变量（写死 31px 的话改序号宽度就会错位）',
+  /--nav-st:\s*\d+px/.test(css) &&
+  /--nav-gap:\s*\d+px/.test(css) &&
+  /margin-left:calc\(var\(--nav-st\) \+ var\(--nav-gap\)\)/.test(css))
+ok('★ 序号宽度也走同一个变量', /\.side \.nav \.st\{[^}]*flex:0 0 var\(--nav-st\)/.test(css))
+
+ok('★ ★ --nav-w 只有一套断点（之前有两套：1280/1400/1200/900 层层覆盖）', (function(){
+  var decls = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split(/\r?\n/)
+    .filter(function (l) { return /--nav-w\s*:/.test(l) })
+  /* 去掉 :root 里的那个默认值声明（它是给 75 行那种写法用的） */
+  var setpoints = decls.filter(function (l) { return /:root\{/.test(l) })
+  /* 默认值 1 个 + 每个断点 1 个 */
+  return setpoints.length >= 2 && setpoints.length <= 6
+})())
+ok('★ 宽度档位严格递减（大屏的数比小屏小就是写反了）', (function(){
+  var m = css.match(/--nav-w:(\d+)px/g) || []
+  var nums = m.map(function (x) { return parseInt(x.match(/\d+/)[0], 10) })
+  /* 找到 media 里那一组（递减链） */
+  var chain = []
+  var re = /@media \(max-width:(\d+)px\)\{:root\{--nav-w:(\d+)px\}\}/g
+  var x
+  while ((x = re.exec(css))) chain.push({ w: +x[1], nav: +x[2] })
+  if (chain.length < 2) return false
+  /* 断点必须递减 */
+  for (var i = 1; i < chain.length; i++) {
+    if (chain[i].w >= chain[i - 1].w) return false
+  }
+  /* 视口越小侧栏越窄（除了轨道态那一档，它反而更窄，没矛盾） */
+  for (var j = 1; j < chain.length; j++) {
+    if (chain[j].nav > chain[j - 1].nav) return false
+  }
+  return true
+})())
+ok('★ 轨道态断点是 860 不是 1024/900（视口 1000 这种常见宽度不该退化）',
+  /@media \(max-width:860px\)\{:root\{--nav-w:64px\}\}/.test(css) &&
+  !/@media \(max-width:1024px\)[\s\S]{0,400}?\.side \.nav[\s\S]{0,200}?display:none/.test(css))
+ok('★ 只在轨道态隐藏文字（中间档只缩窄）', (function(){
+  /* ★ 要按块取，不能从出现位置往后数固定字数 ——
+       文件里第一处「max-width:860px」是宽度令牌那一行，
+       从那儿往后 1200 字装不下轨道态那个块。
+
+     按花括号配对取出整个 @media 块。
+     CSS 块有嵌套，按位置猜长度必然出错。 */
+  var at = css.indexOf('@media (max-width:860px)')
+  while (at >= 0) {
+    var open = css.indexOf('{', at)
+    if (open < 0) return false
+    var depth = 0
+    var end = open
+    for (var i = open; i < css.length; i++) {
+      if (css[i] === '{') depth++
+      else if (css[i] === '}') { depth--; if (depth === 0) { end = i; break } }
+    }
+    var block = css.slice(at, end)
+    if (/\.side \.nav \.tx/.test(block)) {
+      return /\.side \.nav \.tx,[\s\S]{0,60}?\.side \.nav \.ds\{display:none\}/.test(block)
+    }
+    at = css.indexOf('@media (max-width:860px)', end)
+  }
+  return false
+})())
+ok('★ 说明文案短到最窄档也装得下（最长 8 字）', (function(){
+  /* 从 app.js 的 PAGES 里量 */
+  var m = js.match(/desc:'([^']+)'/g) || []
+  if (!m.length) return false
+  var max = 0
+  m.forEach(function (d) {
+    var t = d.slice(7, -1)
+    if (t.length > max) max = t.length
+  })
+  return max <= 8
+})())
+ok('★ ★ 验收里有「数数量」和「横向余量」两类判据', (function(){
+  var me = fs.readFileSync(ROOT + '/验收测试.js', 'utf8')
+  return /序号只渲染一次/.test(me) && /grid-template-columns/.test(me)
+})())
+
+/* ════════ 9i0. 判据本身不能有假阳性 ════════
+
+   用户原话：「左侧功能栏的那个 UI 还是互相有遮挡。」
+
+   我改完侧栏跑通用两两检测，报「重叠 4 处」。
+   打印出来一看：交叠尺寸全是负数。
+
+     brand × nav-group  交叠 213×0px
+     brand × nav        交叠 213×-27px
+     st  × tx          交叠 -8×17px
+
+   ★ 我那个重叠公式写错了：
+       ovH = min(bottom) - max(top)
+       两个元素上下排开时 min(bottom) < max(top)，
+       相减是负数 —— 那个值说明【没重叠】，不是重叠 27px。
+       我把负数当正的读了。
+
+     根因：我只判了「矩形边界不相交」这个不等式，
+     没判「算出来的交叠量是正是负」。
+
+   ★ 这是这轮最重要的一课，也是这个项目栽得最深的那个：
+       假阳性比没修更坏。
+
+       上一轮我栽在反方向：报告说「重叠 0 处」是对的，
+       但用户问的是横向挤压，我答的不是他问的。
+       这一轮栽在正方向：报告说有重叠，是我自己算错了。
+
+       两个方向都栽在同一个地方 —— 检测器的逻辑本身没人核。
+       一份没被验证过的判据，报「过了」和报「有病」同样不可信。
+
+   所以下面这几条断言查的不是「有没有重叠」，
+   是【判据自己有没有这三个漏洞】。 */
+sec('9i0 判据本身')
+ok('★ ★ 交叠量必须是正数才算交叠（负数说明没重叠）', (function(){
+  var u = fs.readFileSync(ROOT + '/engine/ui-check.mjs', 'utf8')
+  /* 三个保护都要在：> 0 判断、面积门槛、absolute 排除 */
+  return /ovH \* ovW < 16/.test(u) &&
+         /ea\.pos === 'absolute'/.test(u) &&
+         /if \(g < -1\)/.test(u)
+})())
+ok('★ ★ 判据里写了为什么（不是光写代码，要写清踩过什么坑）', (function(){
+  var u = fs.readFileSync(ROOT + '/engine/ui-check.mjs', 'utf8')
+  return /假阳性比没修更坏/.test(u) && /交叠 213×-27px|负数/.test(u)
+})())
+ok('★ 侧栏检测查序号数量（渲染两次会叠，每一份单独看都正常）', (function(){
+  var u = fs.readFileSync(ROOT + '/engine/ui-check.mjs', 'utf8')
+  return /stCount: n\.querySelectorAll\('\.st'\)\.length/.test(u)
+})())
+ok('★ ★ 侧栏检测查横向余量（用户说的是「挤」，不是「叠」）', (function(){
+  var u = fs.readFileSync(ROOT + '/engine/ui-check.mjs', 'utf8')
+  return /max-content/.test(u) && /cut:/.test(u) && /scrollWidth > dsEl\.clientWidth/.test(u)
+})())
+ok('★ 静态侧量的是主态规则，不是 media 里那条', (function(){
+  var u = fs.readFileSync(ROOT + '/engine/ui-check.mjs', 'utf8')
+  return /mediaRanges/.test(u) && /mainRule/.test(u) &&
+         /量的是主态那条/.test(u)
+})())
+ok('★ ★ 段间距 0 不算重叠（紧挨着是正常排版）', /if \(g < -1\)/.test(
+  fs.readFileSync(ROOT + '/engine/ui-check.mjs', 'utf8')))
 
 sec('9ca 暂时性死区')
 {

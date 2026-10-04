@@ -84,7 +84,7 @@ const PAGES = [
   { id:'hot',   n:'1', label:'热', full:'热点', desc:'翻实时榜单找选题' },
   { id:'idea',  n:'2', label:'题', full:'定题', desc:'定下这次写什么' },
   { id:'write', n:'3', label:'稿', full:'成稿', desc:'改稿、配图、核对' },
-  { id:'ship',  n:'4', label:'发', full:'发布', desc:'换主题，复制进公众号' }
+  { id:'ship',  n:'4', label:'发', full:'发布', desc:'换主题，复制成稿' }
 ]
 
 function shell() {
@@ -94,9 +94,9 @@ function shell() {
     <div class="nav-group">
       <div class="nav-label">流程</div>
       ${PAGES.map(p => `<button class="nav" data-go="${p.id}" title="${p.full} · ${p.desc}">` +
-        `<span class="st">${p.n}</span>` +
-        `<span class="tx-wrap"><span class="tx">${p.full}</span>` +
-        `<span class="ds">${p.desc}</span></span>` +
+        `<span class="st-row"><span class="st">${p.n}</span>` +
+        `<span class="tx">${p.full}</span></span>` +
+        `<span class="ds">${p.desc}</span>` +
         `<span class="badge hide"></span></button>`).join('')}
     </div>
     <div class="side-foot">

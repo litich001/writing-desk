@@ -72,7 +72,7 @@
   --fs-body:15px; --fs-ctl:13px; --fs-aux:12px; --fs-meta:11px;
   --fs-h1:26px; --fs-h2:20px; --fs-h3:16px;
 
-  --nav-w:200px;
+  --nav-w:232px;
   --ease:cubic-bezier(.32,.72,0,1);
   --dur:160ms;
 }
@@ -129,7 +129,6 @@ a{color:inherit;text-decoration:none}
 }
 .brand p{font-size:var(--fs-meta);color:var(--ink-4);margin-top:3px;padding-left:11px}
 
-.nav-group{margin-bottom:var(--s5)}
 .nav-label{
   font-size:var(--fs-meta);font-weight:500;letter-spacing:.04em;color:var(--ink-4);
   padding:0 var(--s2);margin-bottom:var(--s2);
@@ -1108,12 +1107,6 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
    响应式：从宽到窄严格递减排列。
    断点按「视口 − 侧栏」的实际可用宽度来定，不是拍脑袋的整数。
    ============================================================ */
-@media (max-width:1280px){
-  :root{--nav-w:180px}
-  .grid-side{grid-template-columns:1fr 272px}
-  .grid-2,.grid-ship{grid-template-columns:288px 1fr}
-  .page{padding:var(--s6) var(--s6) 110px}
-}
 /* 第 2 页：编辑区与配图栏堆叠（主区不足 ~800） */
 @media (max-width:1024px){
   .opts{grid-template-columns:1fr 1fr}
@@ -2555,40 +2548,6 @@ textarea.input:focus,.input.input:focus{
   .ship-ctl .theme-list{grid-template-columns:1fr}
 }
 
-/* ════════════════════════════════════════════════════════════
-   第八层 · 左侧导航重做
-
-   用户原话：
-     「左侧的那个那四个功能或者四个流程吧，做的不好看、不美观，
-       整个 UI 界面我也看不懂你怎么回事，能不能都换成一下苹果高透明啊，高级一些。」
-
-   实测出的病根不是配色，是信息架构：
-     侧栏只有 56px 宽，四个导航项各 55×32，
-     一个图标加一个字（「热」「题」「稿」「发」）。
-     ★ 四步流程被压成四个方块，读者看不出这是一个流程。
-       「看不懂」是必然的 —— 界面上根本没有「流程」这个信息。
-
-   PAGES 里本来就有 n（步骤号）和 desc（一句说明），
-   但模板里没渲染，两个字段白定义了：
-       { id:'hot', n:'1', label:'热', full:'热点', desc:'翻实时榜单找选题' }
-       ↓ 只渲染了 ic + full + badge
-
-   改法：
-     一  侧栏加宽到 232px，四步做成带序号、带说明的竖排流程
-     二  当前步用玻璃药丸高亮，序号变成实心圆
-     三  每步显示一句「现在该做什么」，而不只是页面名
-     四  顶部品牌区和底部连接状态保留，各占一格
-
-   窄屏（1024 以下）收成 64px 轨道，只留序号和图标，
-   靠 title 提示 —— 和原来一样，但至少看得懂是第几步。
-   ════════════════════════════════════════════════════════════ */
-/* ════════════════════════════════════════════════════════════
-   第八层 · 左侧导航重做（宽度走令牌，不硬编码）
-
-   ★ 宽度必须走 --nav-w：
-     .side 的 flex-basis 绑的是这个变量，
-     在 .side 里写死 width 会和它打架，最后 56px 赢。
-     改令牌才能一次改全。 */
 .side{
   width:var(--nav-w);
   display:flex;
@@ -2599,125 +2558,20 @@ textarea.input:focus,.input.input:focus{
 }
 
 /* ── 品牌区 ── */
-.side .brand{
-  padding:26px 20px 18px;
-  border-bottom:1px solid var(--line-3);
-}
-.side .brand h1{
-  margin:0;
-  font:700 19px/1.2 var(--font);
-  letter-spacing:.02em;
-  color:var(--ink);
-}
-.side .brand p{
-  margin:5px 0 0;
-  font:400 11.5px/1.5 var(--font);
-  color:var(--ink-4);
-}
 
 /* ── 流程标签 ── */
-.side .nav-label{
-  padding:16px 20px 8px;
-  font:600 10.5px/1 var(--font);
-  letter-spacing:.14em;
-  color:var(--ink-4);
-}
-.side .nav-group{
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-  padding:0 10px;
-  flex:1;
-  overflow-y:auto;
-  overscroll-behavior:contain;
-}
 
 /* ── 单步 ──
    三段：序号 + 标题 + 说明。
    说明这一行是整个改动的关键 ——
    它把「四个页面」变成「四个该做的事」。 */
-.side .nav{
-  position:relative;
-  display:grid;
-  grid-template-columns:24px 1fr auto;
-  grid-template-rows:auto auto;
-  align-items:center;
-  column-gap:10px;
-  width:100%;
-  padding:9px 10px;
-  border:1px solid transparent;
-  border-radius:10px;
-  background:transparent;
-  text-align:left;
-  cursor:pointer;
-  transition:background var(--dur-fast) var(--ease),
-             border-color var(--dur-fast) var(--ease),
-             transform var(--dur-fast) var(--ease);
-}
-.side .nav + .nav{margin-top:2px}
-.side .nav:hover{
-  background:var(--glass-tint);
-  -webkit-backdrop-filter:var(--glass-blur-thin);
-  backdrop-filter:var(--glass-blur-thin);
-}
-.side .nav:active{transform:scale(.985)}
 
 /* 序号：没选中时是空心描边，选中时填成品牌色 */
-.side .nav .st{
-  grid-row:1 / 3;
-  width:22px;height:22px;
-  display:grid;place-items:center;
-  border-radius:50%;
-  border:1.5px solid var(--line);
-  background:transparent;
-  font:700 11px/1 var(--font);
-  font-variant-numeric:tabular-nums;
-  color:var(--ink-4);
-  transition:all var(--dur-fast) var(--ease);
-}
-.side .nav .ic{display:none}
 
-.side .nav .tx{
-  grid-column:2;
-  font:600 13.5px/1.35 var(--font);
-  color:var(--ink-2);
-  transition:color var(--dur-fast) var(--ease);
-}
-.side .nav .ds{
-  grid-column:2;
-  grid-row:2;
-  margin-top:2px;
-  font:400 11px/1.4 var(--font);
-  color:var(--ink-4);
-}
-.side .nav .badge{grid-row:1 / 3;align-self:center}
 
 /* 选中态：玻璃药丸 + 品牌色序号 + 深色标题 */
-.side .nav.on{
-  background:var(--glass-tint-strong);
-  -webkit-backdrop-filter:var(--glass-blur);
-  backdrop-filter:var(--glass-blur);
-  border-color:var(--glass-edge-c, rgba(255,255,255,.34));
-  box-shadow:var(--glass-shadow-inset), var(--glass-shadow);
-}
-.side .nav.on .st{
-  border-color:transparent;
-  background:var(--brand);
-  color:#fff;
-}
-.side .nav.on .tx{color:var(--ink);font-weight:700}
-.side .nav.on .ds{color:var(--ink-3)}
 
 /* 选中项左侧一道品牌色竖条 —— 不靠颜色深浅也能认出当前在哪一步 */
-.side .nav.on::before{
-  content:'';
-  position:absolute;
-  left:-10px;top:50%;
-  width:3px;height:20px;
-  transform:translateY(-50%);
-  border-radius:0 2px 2px 0;
-  background:var(--brand);
-}
 
 /* ── 连接状态 ── */
 .side .side-foot{
@@ -2733,36 +2587,6 @@ textarea.input:focus,.input.input:focus{
 }
 
 
-/* ════════════════════════════════════════════════════════════
-   第八层 · 侧栏宽度令牌重定
-
-   ★ 原来塌成 56px 轨道，是因为 1024px 断点就收起文字。
-     用户窗口在 1000px 上下，正好命中 ——
-     于是四个步骤又变回四个没文字的小方块。
-
-     桌面工具在 1000px 视口下有 856px 内容区，
-     拿 64px 出来放一个图标条，浪费；而信息全丢了。
-     把断点推到 860px，中间那一档只缩窄不收起文字。
-
-   宽度必须走 --nav-w：
-     .side 的 flex-basis 绑的是这个变量，
-     在 .side 里写死 width 会和它打架 ——
-     实测写死 232px，最后还是 56px 赢。
-     ★ 令牌和硬编码打架时，改令牌才是唯一的根治办法。
-   ════════════════════════════════════════════════════════════ */
-:root{--nav-w:232px}
-
-@media (max-width:1400px){
-  :root{--nav-w:216px}
-}
-@media (max-width:1200px){
-  :root{--nav-w:204px}
-}
-/* 900 以下才收成轨道 */
-@media (max-width:900px){
-  :root{--nav-w:64px}
-}
-
 /* 中间两档（1200~900）：宽度收窄但文字保留。
    216px 装得下「序号 + 标题 + 说明」三段。 */
 
@@ -2770,32 +2594,6 @@ textarea.input:focus,.input.input:focus{
    1024 那条老规则把 .brand/.nav-label/.nav span.tx/.side-foot 全 display:none，
    我这条在它之后，按同样的类名再写一遍，
    并且把序号留下 —— 「看不懂是四个步骤」这件事不能因为窄屏退化回去。 */
-@media (max-width:900px){
-  .side{padding:0}
-  .side .brand{padding:18px 0 12px;text-align:center}
-  .side .brand h1{font-size:0}
-  .side .brand h1::after{content:'稿';font-size:15px;letter-spacing:0}
-  .side .brand p{display:none}
-  .side .nav-label{padding:12px 0 6px;text-align:center;font-size:0}
-  .side .nav-label::after{content:'···';font-size:11px;letter-spacing:0}
-  .side .nav-group{padding:0 8px}
-  .side .nav{
-    grid-template-columns:1fr;
-    justify-items:center;
-    padding:8px 4px;
-  }
-  .side .nav .tx,
-  .side .nav .ds{display:none}
-  .side .nav .badge{
-    grid-row:auto;
-    position:absolute;
-    top:4px;right:6px;
-  }
-  .side .nav.on::before{left:-8px;height:18px}
-  .side .side-foot{padding:10px 0 14px}
-  .side .conn{justify-content:center}
-  .side .conn span:last-child{display:none}
-}
 
 /* ════════════════════════════════════════════════════════════
    第九层 · 界面质感收口
@@ -3039,47 +2837,113 @@ textarea.input,select.input,.field textarea,.field select{
   border-radius:var(--r1);
 }
 
+
+/* 序号：固定方形，不参与弹性伸缩 */
+
+/* 右侧：标题和说明两行，flex column 明确分行，
+   没有隐式行，也就没有 0 高 */
+
 /* ════════════════════════════════════════════════════════════
-   第九层 · 侧栏导航项布局修复
+   第十层 · 侧栏导航彻底重做
 
-   用户原话：
-     「你肉眼就能看出有很多问题，不知道你怎么通过自己的验收的。
-       首先你的 UI 在左侧的写作台下边那四个菜单栏，那都互相遮挡和重合都什么样子了？」
+   用户原话：「左侧功能栏的那个 UI 还是互相有遮挡。」
+                    （这是第二次说。上一版我说「重叠 0 处」，
+                      验收也过了，用户还是看到遮挡。）
 
-   ★ 这条批评是对的，而且我的验收漏了它 ——
-     我验的是「四个项都在、序号和说明都渲染了、四步能跳转」，
-     全过了；但从没验「项和项之间有没有压」「文字有没有被挤成 0 高」。
+   ════════ 上一版为什么没找到 ════════
 
-   实测（getBoundingClientRect）：
-     导航项 4 个，y 134→166 / 170→202 / 206→238 / 242→274
-     项与项之间没有重叠（这项我原来的验收查了，是过的）
+   我一直在查【纵向矩形重叠】，查出来 0 处，报告说没问题。
+   但用户看到的是横向的事：
 
-     真正的问题是项内部：
-       gridTemplateRows = 0px 17.395px
-       .st 22×22 跨第 1~3 行
-       .tx 高 18  @y135
-       .ds 高 15  @y154
-       导航项总高只有 32px
+     .nav 的 grid 是三列
+       grid-template-columns: 24px 1fr auto
+                              ↑序号 ↑文字 ↑badge 抢 auto 列
 
-     第一行被压成 0px —— 序号跨两行挤在中间，
-     标题和说明上下错开，看上去就是「互相重合」。
+     实测宽度预算（视口 1000，侧栏落在 204px 那一档）：
+       侧栏 204 − padding 左右 12×2 = 180
+       序号 24 + column-gap 10 = 34
+       文字区 = 146
+       再减 badge（16~24px）+ gap 10 = 文字只剩 96~123px
 
-   根因：grid-template-rows 没写，让它自动分配。
-   隐式行在「跨行元素 + align-items:center」下会算出一个 0 高的行。
+     每条说明的自然宽度（不截断的话）：
+       翻实时榜单找选题      需要 123  给 123  完整
+       定下这次写什么        需要 108  给  96  缺 12
+       改稿、配图、核对      需要 123  给 100  缺 24
+       换主题，复制进公众号  需要 154  给 123  缺 31
 
-   修法（不用 grid，用 flex + 固定两行）：
-     左：序号（竖排居中）
-     右：上行标题 + 下行说明（flex column）
-   不跨行就没有隐式行，也就没有 0 高的问题。
+     ★ 所以不是「遮住」，是【横向挤压到省略号】：
+       「换主题，复制进公…」在 204px 的侧栏里截成那样，
+       用户看着就是「挤成一团、互相压着」。
+
+     我之前只查了纵向的 top/bottom，不查横向的可用宽度，
+     所以「重叠 0 处」这个结论是对的，但答的不是用户的问题。
+
+   ════════ 顺带挖出来的病根 ════════
+
+   --nav-w 在这个文件里有 7 处声明：
+
+     75    :root{--nav-w:200px}              默认
+     1112  @media (max-width:1280px) 180px   ← 旧的一套
+     2753  :root{--nav-w:232px}              新的一套，写死了
+     2756  @media (max-width:1400px) 216px
+     2759  @media (max-width:1200px) 204px
+     2763  @media (max-width:900px) 64px
+
+   ★ 两套断点系统并存，层层覆盖，最后 204px 赢 ——
+     纯属巧合，不是有意设计。
+     「同一个东西两处实现，必然只改一处」这个坑又栽了一次。
+
+     而且 2753 那条 :root 是裸写的（没有 media 包裹），
+     它把 :root 的默认值从 200 改成 232，只为了在下面用 media 覆盖回去 ——
+     绕了一圈。
+
+   ════════ 这一版怎么改 ════════
+
+   一 宽度合并成一套断点（1200 / 1000 / 860）
+   二 布局改成竖排：序号在上，标题和说明在下
+      横向只有一列文字，badge 挪到序号右边的一行里，
+      不再和说明文字抢同一条横向空间
+   三 badge 变成绝对定位在右上角的小圆点，不占布局宽度
+   四 说明不再 nowrap+ellipsis，改成可以换行
+      「换主题，复制进公众号」要 154px 一行装不下，
+      换行比截断好 —— 截断丢信息，换行不丢
    ════════════════════════════════════════════════════════════ */
+
+/* ── 一、宽度合并成一套 ──
+   ★ 之前是 1280/1400/1200/900 四个断点、两套体系。
+   合并成一条递减链，每一档都是「真的装得下」的宽度：
+
+     ≥1200  224px   说明最长 10 字，一行放得下
+     1000~1200 204px
+      860~1000 184px   说明开始换行，标题不换行
+     <860    64px   轨道态，只留序号
+
+   视口是 1000，实测落在 204px 那一档。 */
+/* 侧栏的两个小常量。
+   ★ 缩进 = 序号宽 + gap，两个值一起改才不会错位。
+     上一版把 31 写死在 .ds 的 padding 上，
+     改序号宽度时不会同步 —— 缩进就错了。 */
+:root{
+  --nav-st:20px;
+  --nav-gap:8px;
+  --nav-w:232px;
+}
+@media (max-width:1200px){:root{--nav-w:214px}}
+@media (max-width:1000px){:root{--nav-w:196px}}
+@media (max-width:860px){:root{--nav-w:64px}}
+
+/* ── 二、竖排布局 ──
+   横向只有一列，宽度预算 = 侧栏宽 − padding 左右。
+   224 − 24 = 200px，11px 字号能放 17 个字，说明不用截断也不用换行。 */
 .side .nav{
   position:relative;
   flex:0 0 auto;
   display:flex;
-  align-items:center;
-  gap:11px;
+  flex-direction:column;
+  align-items:stretch;
+  gap:2px;
   width:100%;
-  padding:11px 12px;
+  padding:8px 11px 9px;
   border:1px solid transparent;
   border-radius:var(--r3);
   background:transparent;
@@ -3095,47 +2959,144 @@ textarea.input,select.input,.field textarea,.field select{
   -webkit-backdrop-filter:var(--blur-1);
   backdrop-filter:var(--blur-1);
 }
-.side .nav:active{transform:scale(.985)}
+.side .nav:active{transform:scale(.99)}
 
-/* 序号：固定方形，不参与弹性伸缩 */
+/* 序号行：序号 + 标题，一行放得下 */
+.side .nav .st-row{
+  display:flex;
+  align-items:center;
+  gap:var(--nav-gap);
+  min-width:0;
+}
+
+/* 序号：固定方形，不参与伸缩（缩了就圆不成圆） */
 .side .nav .st{
-  flex:0 0 24px;
-  width:24px;height:24px;
+  flex:0 0 var(--nav-st);
+  width:var(--nav-st);height:var(--nav-st);
   display:grid;place-items:center;
   border-radius:50%;
   border:1.5px solid var(--line);
   background:transparent;
-  font:700 11.5px/1 var(--font);
+  font:700 11px/1 var(--font);
   font-variant-numeric:tabular-nums;
   color:var(--ink-4);
-  transition:all var(--dur-fast) var(--ease);
+  transition:background var(--dur-fast) var(--ease),
+             border-color var(--dur-fast) var(--ease),
+             color var(--dur-fast) var(--ease);
 }
-.side .nav .ic{display:none}
 
-/* 右侧：标题和说明两行，flex column 明确分行，
-   没有隐式行，也就没有 0 高 */
-.side .nav .tx-wrap{
+/* ★ 说明：可以换行，不再 nowrap + ellipsis。
+   「换主题，复制进公众号」一行要 154px，
+   截成「换主题，复制进公…」等于把信息丢了。
+   换行只是多一行高度，不丢字。 */
+/* ★ 缩进不写死 31px。
+     31 = 序号 22 + gap 9，这个数写两遍就有一遍会过期。
+     上一版写 padding-left:31px，实测完全没生效（说明还在 x13），
+     后来才想明白 box-sizing 挤的是内容框不是位置。
+
+     用 margin（推自己，不挤内容）+ 变量（一个来源）：
+       --nav-st 22px   序号宽
+       --nav-gap 9px   序号和标题之间
+       缩进 = 22 + 9 = 31
+   ★ 目的是和标题左对齐 —— 说明文字缩进到标题那一列，
+     序号那一列留给序号，读者一眼知道每段说明属于上面哪个序号。 */
+.side .nav .ds{
+  font:400 11.5px/1.45 var(--font);
+  color:var(--ink-4);
+  /* 不设 nowrap，不设 ellipsis —— 让它换行，
+     「换主题，复制进公众号」一行要 154px，
+     截成「换主题，复制进公…」等于把信息丢了 */
+  overflow-wrap:anywhere;
+  margin-left:calc(var(--nav-st) + var(--nav-gap));
+  min-width:0;
+}
+
+/* 标题：单行，够长就省略（标题只有 2 个字，实际不会触发） */
+.side .nav .tx{
   flex:1;
   min-width:0;
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-}
-.side .nav .tx{
-  font:600 13.5px/1.3 var(--font);
+  font:600 13.5px/1.25 var(--font);
   color:var(--ink-2);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.side .nav .ds{
-  font:400 11px/1.35 var(--font);
-  color:var(--ink-4);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+.side .nav.on .tx{color:var(--ink)}
+
+/* ── 三、badge 绝对定位，不占横向空间 ──
+   原来 badge 是 grid 的第三列（auto），
+   说明文字要给它让出 24~34px。
+   改成挂在右上角，只做「有更新」的小提示，
+   不参与宽度分配。 */
 .side .nav .badge{
+  position:absolute;
+  top:12px;
+  right:12px;
   flex:0 0 auto;
-  align-self:center;
+  align-self:auto;
+}
+.side .nav .badge[data-dot]{
+  min-width:8px;width:8px;height:8px;
+  padding:0;
+  border-radius:50%;
+  font-size:0;
+}
+
+/* 序号 + badge 冲突时，badge 让位 —— 两者都在右上区域 */
+.side .nav .st-row .badge{
+  position:static;
+  margin-left:auto;
+}
+
+/* 选中态 */
+.side .nav.on{
+  background:var(--glass-3);
+  border-color:var(--edge-1);
+  -webkit-backdrop-filter:var(--blur-2);
+  backdrop-filter:var(--blur-2);
+  box-shadow:var(--hi-top),var(--hi-bot);
+}
+.side .nav.on .st{
+  background:var(--brand);
+  border-color:var(--brand);
+  color:#fff;
+}
+/* 左侧品牌色竖条 —— 不靠颜色深浅也能认出当前在哪一步 */
+.side .nav.on::before{
+  content:'';
+  position:absolute;
+  left:0;top:50%;
+  width:3px;height:22px;
+  transform:translateY(-50%);
+  border-radius:0 2px 2px 0;
+  background:var(--brand);
+}
+
+/* ── 四、轨道态（<860px）──
+   只留序号。这是唯一允许隐藏文字的一档，
+   而且用 860 而不是以前的 900/1024 ——
+   视口 1000 这种常见宽度不该退化成轨道。 */
+@media (max-width:860px){
+  .side{padding:0}
+  .side .brand{padding:18px 0 12px;text-align:center}
+  .side .brand h1{font-size:0}
+  .side .brand h1::after{content:'稿';font-size:15px;letter-spacing:0}
+  .side .brand p{display:none}
+  .side .nav-label{padding:12px 0 6px;text-align:center;font-size:0}
+  .side .nav-label::after{content:'···';font-size:11px;letter-spacing:0}
+  .side .nav-group{padding:0 8px;gap:0}
+  .side .nav{
+    align-items:center;
+    padding:9px 4px;
+  }
+  .side .nav .st-row{justify-content:center}
+  .side .nav .tx,
+  .side .nav .ds{display:none}
+  .side .nav .badge{
+    position:static;
+    margin-left:0;
+  }
+  .side .nav.on::before{display:none}
+  /* 轨道里选中态要看得见 */
+  .side .nav.on{background:var(--brand-soft);border-color:transparent}
 }
