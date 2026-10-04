@@ -1805,7 +1805,11 @@ const probeFn = (() => {
 if (probeFn) {
   const runProbe = probeFn({ body: '', project: {}, images: [], facts: [] }, () => [], () => '2026-01-01')
   const BASE = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
-  const TITLE = '她花了十五万去南极，回来发现肿瘤小了。但这真不是旅游治病'
+/* 基准稿的标题从 project.json 读，不写死。
+   写死「当前这一篇」的测试，换个选题就失效，
+   而它失效时报的是「标题与正文不相符」，和真实病因毫无关系。 */
+const projNow = JSON.parse(fs.readFileSync(ROOT + '/data/project.json', 'utf8'))
+const TITLE = projNow.title || ''
   const nm = h => String(typeof h.n === 'string' ? h.n : (h.n && h.n.name) || '')
   const hit = (c, key) => c.hits.some(h => nm(h).indexOf(key) >= 0)
 
