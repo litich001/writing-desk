@@ -78,13 +78,43 @@ for (const d of [DATA, IMGDIR, SNAPDIR, QUEUE]) fs.mkdirSync(d, { recursive: tru
 for (const k of Object.keys(DEFAULTS)) if (!fs.existsSync(path.join(DATA, k + '.json'))) writeJSON(k, DEFAULTS[k])
 if (!fs.existsSync(path.join(DATA, 'body.md'))) writeBody('')
 
+/* 内容指纹 —— stamp 的正确语义是「数据版本号」，不是「现在几点」。
+   原来写的是 now()，于是每次请求 stamp 都是新的，
+   前端的 changed 恒为 true，每 4 秒重画整页，
+   用户翻到的位置被冲回顶部。
+
+   这个函数只吃内容，不吃时间：
+     内容没变 → 指纹不变 → 前端不重绘
+     内容变了 → 指纹变   → 前端更新
+
+   用的是一个 32 位 FNV-1a 变体，不是密码学哈希 ——
+   这里只要「变了能发现」，不需要防碰撞攻击。 */
+function fingerprint(...parts) {
+  const t = parts.join('\u0001')
+  let h = 0x811c9dc5
+  for (let i = 0; i < t.length; i++) {
+    h ^= t.charCodeAt(i)
+    h = Math.imul(h, 0x01000193) >>> 0
+  }
+  return h.toString(36) + '-' + t.length.toString(36)
+}
+
 function snapshot() {
-  const s = { stamp: now(), themes: Object.entries(THEMES).map(([id, t]) => ({ id, n: t.name, tag: t.tag, preview: t.preview, colors: t.colors })) }
+  const s = { stamp: '', themes: Object.entries(THEMES).map(([id, t]) => ({ id, n: t.name, tag: t.tag, preview: t.preview, colors: t.colors })) }
   for (const k of JSON_FILES) s[k] = readJSON(k + '.json') || DEFAULTS[k]
   s.body = readBody()
   s.queue = fs.readdirSync(QUEUE).filter(f => f.endsWith('.json')).sort().map(f => { try { return JSON.parse(fs.readFileSync(path.join(QUEUE, f), 'utf8')) } catch { return null } }).filter(Boolean)
   // 附上每张图的可访问地址，前端不用自己拼
   s.images = (s.images || []).map(x => ({ ...x, url: '/data/images/' + encodeURIComponent(x.file) }))
+  /* 指纹只吃真正会影响界面的字段。
+     把 stamp 自己排除在外，否则指纹每次都变，又回到老问题。
+     队列数量和图片数也算进去 —— 它们会变徽标。 */
+  s.stamp = fingerprint(
+    s.body,
+    JSON.stringify([s.project, s.topics, s.materials, s.facts, s.images, s.titles, s.versions, s.audit]),
+    s.queue.length,
+    s.themes.length
+  )
   return s
 }
 

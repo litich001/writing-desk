@@ -1127,6 +1127,186 @@ ok('★ 每种风格仍保留「必有」判据（不能只靠黑名单）',
     return n >= 10
   })())
 
+/* ════════ 9e0. 自动刷新不能吃掉阅读位置 ════════
+   用户原话：「每隔几秒会自动刷新，我翻着翻着页你就给我刷新回到顶部了，
+              这肯定他妈有问题啊。」
+
+   ★ 根因在 server.mjs 的 snapshot()：
+       stamp: now()
+     now() 是当前时间，于是每次 /state 请求 stamp 都是新的，
+     app.js 的 changed = (s.stamp !== lastStamp) 恒为 true，
+     refresh() 每 4 秒 innerHTML 重画整页，滚动位置回到顶部。
+
+     实测采样 7 次每 4 秒：
+       stamp: 20:03:48 | 20:03:52 | 20:03:56 | ...
+       每次都不同 → 每 4 秒必重绘。
+
+     stamp 这个名字语义是「数据版本号」，
+     写的人当成「最后更新时间」用了 ——
+     名字和用途对不上，下一个人接上只会踩同一个坑。
+
+   修法两处：
+     一 stamp 改成内容指纹，内容不变指纹就不变
+     二 重绘时存/还原滚动位置（focus 和 scroll 是两回事） */
+sec('9e0 自动刷新与阅读位置')
+ok('★ ★ stamp 是内容指纹，不是 now()（否则每 4 秒必重绘）',
+  /function fingerprint/.test(srv) &&
+  /s\.stamp = fingerprint\(/.test(srv) &&
+  !/stamp: now\(\)/.test(srv))
+ok('★ 指纹只吃内容字段，stamp 自己排除在外',
+  /s\.body,\s*\n?\s*JSON\.stringify/.test(srv.replace(/\r\n/g, '\n')) ||
+  /fingerprint\(\s*s\.body/.test(srv))
+ok('★ 滚动容器是 main 不是 window（存 window.scrollY 永远是 0）',
+  /document\.querySelector\('main'\)/.test(js) &&
+  /m\.els\.push\(\[main, main\.scrollTop\]\)/.test(js))
+ok('★ refresh 里有 restoreScroll（只存焦点等于没存位置）',
+  /restoreScroll\(sc\)/.test(js))
+ok('★ 发布页三栏各自能滚，也一起存',
+  /\.ship-col, \.side-pane, \.hot-list/.test(js))
+ok('★ 还原时按 class 找新节点（重绘后旧节点已不在文档里）',
+  /const el = key === 'main'/.test(js) && /el\.isConnected/.test(js))
+ok('★ snapScroll / restoreScroll 各只有一个定义（插删多轮易留下重复）',
+  (js.match(/function snapScroll/g) || []).length === 1 &&
+  (js.match(/function restoreScroll/g) || []).length === 1 &&
+  (js.match(/function refresh\(/g) || []).length === 1)
+
+/* ════════ 9e1. 来源前缀 ════════
+   用户原话：「你一直在强调文中什么什么材料里说明。
+              那这些东西按理说不应该出现在你的正文中的。」
+
+   原来的自检只查行首的「来源：」和「据某某报道」，
+   查不到正文中间那九种：
+     期刊上一篇文章写砌体结构
+     有研究估算，那套方案能让强度提四分之一
+     作者最后写了一句
+     云南那边做田野调查的时候，老人说
+     有位老人跟我说过一件事
+     后来他写了一段话
+
+   ★ 判据写窄和没有判据一样糟，它给出「已经检查过了」的错觉。 */
+sec('9e1 来源前缀')
+ok('★ 来源前缀有六条规则', (js.match(/n:'来源前缀'/g) || []).length >= 6)
+ok('★ 抓「期刊/论文/研究 + 写/说/表明/估算」', /(期刊\|论文\|文章\|文献\|研究\|报道)/.test(js))
+ok('★ 抓「作者/专家/学者/记者 + 表示/指出」', /(作者\|专家\|学者\|研究人员\|笔者\|记者)/.test(js))
+ok('★ 抓「据/根据/按照 + 报道/文献/数据」', /\(据\|根据\|按照\)/.test(js))
+ok('★ 抓「某人 + 跟我说/跟我讲/提到」', /(跟我说\|跟我讲\|告诉我\|提到了\|提到过)/.test(js))
+ok('★ 动词带「了/过」也算（实测漏了「写了一句」「跟我说过」）',
+  /\(了\|过\)\?/.test(js) || /\(了\|过\|过一件事\)/.test(js))
+ok('★ ★ 不误伤直接引语（「她说」「他邻居说」是写作不是转述）',
+  (function(){
+    /* 引语形态不该命中任何一条来源前缀规则 */
+    var quotes = [
+      '她说走的地方多了就不计较了',
+      '他邻居说他傻。他说这叫留个念想',
+      '「打了就回不来了。」他说这话的时候没看人',
+      '大摆衣村有位老人说过。只要维护得当，土房子用上100年妥妥的没有问题。'
+    ]
+    var rules = []
+    var m = js.match(/\{ n:'来源前缀'[^\n]*\n[^\n]*/g) || []
+    for (var i = 0; i < m.length; i++) {
+      var re = m[i].match(/re:\/(.+)\/g/)[1]
+      try { rules.push(new RegExp(re)) } catch (e) {}
+    }
+    if (!rules.length) return false
+    var fired = 0
+    quotes.forEach(function(q) {
+      rules.forEach(function(r) { if (r.test(q)) fired++ })
+    })
+    return fired === 0
+  })())
+ok('★ 文末来源表不误伤（「来源」「出处：」必须放行）',
+  !/n:'来源前缀'[^\n]*\n[^\n]*\|/.test(js))
+ok('★ 当前正文没有来源前缀', (function(){
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  return !/(据|根据|按照)[^。，\n]{0,8}(报道|通报|文献|研究|数据|统计|说法)/.test(body) &&
+         !/[^\n]{0,12}(期刊|论文|文章|文献|研究|报道)[^。，\n]{0,4}(写|说|表明|显示|发现|估算|提到|指出)/.test(body) &&
+         !/(调查|研究)[^。，\n]{0,4}(显示|表明|发现|估算|证明|提到|指出|介绍|说)/.test(body) &&
+         !/[^\n。，]{0,8}(老人|老人家|老乡|村里人|他|她|对方)[^。，\n]{0,6}(跟我说|跟我讲|告诉我|提到了|提到过)/.test(body)
+})())
+
+/* ════════ 9e2. 界面质感 ════════
+   用户原话：
+     「左侧的那个那四个功能或者四个流程吧，做的不好看、不美观，
+       整个 UI 界面我也看不懂你怎么回事，
+       能不能都换成一下苹果高透明啊，高级一些。」
+
+   实测出的病根不是配色，是三样：
+     一 圆角完全不统一（0 / 2 / 3 / 10px 混用）
+     二 概要条、自检块、交付区是实色，没玻璃化
+     三 侧栏只有 56px，四步流程被压成四个没文字的方块
+
+   ★ 第一条是「不高级」的主因 ——
+     同一类控件在不同地方圆角不同，界面看着就是「拼的」，
+     跟配色准不准没关系。 */
+sec('9e2 界面质感')
+ok('★ 侧栏宽度走令牌 --nav-w（写死 width 会和 flex-basis 打架）',
+  /\.side\{\s*width:var\(--nav-w\)/.test(css))
+ok('★ 令牌有四档，且侧栏收窄的断点是 900 而不是 1024', (function(){
+  /* 1024 那一档以前会把侧栏文字全 display:none，
+     视口 1000 正好命中，四步流程就退化成四个没文字的方块。
+     现在收窄断点推到 900，1024 只缩窄不收起。 */
+  return /--r1:6px/.test(css) && /--r2:10px/.test(css) &&
+    /--r3:14px/.test(css) && /--r4:20px/.test(css) &&
+    /@media \(max-width:900px\)/.test(css) &&
+    !/@media \(max-width:1024px\)[\s\S]{0,300}?\.side[^{]*\{[^}]*display:none/.test(css)
+})())
+ok('★ ★ 侧栏没有残留的 display:none（悬空规则会全局生效，藏掉所有文字）',
+  !/^\s+\.side \.nav-label::after\{content:/.test(css))
+ok('★ 四步渲染出序号和说明（原来是白定义的两个字段）',
+  /class="st">\$\{p\.n\}/.test(js) && /class="ds">\$\{p\.desc\}/.test(js))
+ok('★ 导航项有品牌色竖条，不只靠颜色深浅区分当前',
+  /\.side \.nav\.on::before/.test(css))
+ok('★ 三块实色已玻璃化', /\.brief,\s*\.self-chk,\s*\.deliver\{[^}]*backdrop-filter/.test(css))
+ok('★ 页面本身不做玻璃（空间加玻璃会越叠越糊）',
+  /\.main,\.page\{[^}]*backdrop-filter:none/.test(css))
+ok('★ 自检块内部行不再各自描边（整块已是玻璃）',
+  /\.self-chk \.chk\{[^}]*border-color:transparent/.test(css))
+ok('★ 主按钮保持实底（玻璃主按钮显轻飘）',
+  /\.btn\.brand,\.btn\.ghost,\.btn\.sm,\.btn\.lg\{/.test(css))
+ok('★ 焦点环全局统一', /:focus-visible\{/.test(css))
+ok('★ CSS 花括号平衡（一个多余的 } 会让后面一大片规则失效）', (function(){
+  var lines = css.split(/\r?\n/)
+  var depth = 0, neg = false
+  lines.forEach(function(line) {
+    var l = line
+    var cs = l.indexOf('/*'), ce = l.indexOf('*/')
+    if (cs >= 0 && ce > cs) l = l.slice(0, cs) + ' ' + l.slice(ce + 2)
+    else if (cs >= 0 && ce < 0) l = l.slice(0, cs)
+    l = l.replace(/(['"])(?:\\.|[^\\])*?\1/g, '""')
+    var d = 0
+    for (var i = 0; i < l.length; i++) {
+      if (l[i] === '{') d++
+      else if (l[i] === '}') d--
+    }
+    depth += d
+    if (depth < 0) neg = true
+  })
+  return !neg && depth === 0
+})())
+
+/* ════════ 9e3. 标题含金量 ════════
+   用户原话：「你的标题的含金量再提升一下。」 */
+sec('9e3 标题')
+ok('★ 六个候选都在，且用词与正文重合达标', (function(){
+  try {
+    var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+    return Array.isArray(t) && t.length >= 6
+  } catch (e) { return false }
+})())
+ok('★ 标题里没有「为什么…」（把答案写进标题等于没标题）',
+  (function(){
+    try {
+      var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+      return !t.some(function(x) { return /为什么/.test(x) })
+    } catch (e) { return false }
+  })())
+ok('★ H1 就是标题（拿选题当大标题会让标题核对报低重合）',
+  (function(){
+    var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+    var proj = JSON.parse(fs.readFileSync(ROOT + '/data/project.json', 'utf8'))
+    return body.split('\n')[0].trim() === '# ' + proj.title
+  })())
+
 sec('9ca 暂时性死区')
 {
   const rw = js.indexOf('function renderWrite')
@@ -1544,7 +1724,18 @@ ok('有旧色值扫描', fs.existsSync(ROOT + '/engine/scan-old-colors.cjs'))
 ok('★ 没有旧配色残留', /旧色值已清空/.test(sh('node engine/scan-old-colors.cjs')))
 ok('暖纸底色', /--bg:#f2efe8/.test(css))
 ok('朱红强调色', /--brand:#b03a2e/.test(css))
-ok('直角为主（圆角 ≤ 4px）', /--r-m:3px/.test(css))
+/* 圆角阶梯：四档 6/10/14/20，老令牌全部指向它。
+   ★ 这条断言原来写死「--r-m:3px」—— 断言写死的是数值不是不变量，
+     每次调设计系统都要改一遍测试。改多了就会有人为了「让测试过」
+     而放弃好的设计，那是最坏的一种失败。 */
+ok('★ 圆角是四档阶梯（6/10/14/20），不是单一值',
+  /--r1:6px/.test(css) && /--r2:10px/.test(css) &&
+  /--r3:14px/.test(css) && /--r4:20px/.test(css))
+ok('★ 老圆角令牌全部指向新阶梯（不能两套混用）',
+  /--r-s:var\(--r1\)/.test(css) && /--r-m:var\(--r1\)/.test(css) &&
+  /--r-l:var\(--r2\)/.test(css) && /--r-xl:var\(--r2\)/.test(css))
+ok('★ 新令牌声明在老令牌之前（老令牌引它，顺序反了就取不到值）',
+  css.indexOf('--r1:6px') > 0 && css.indexOf('--r1:6px') < css.indexOf('--r-s:'))
 ok('标题走衬线', /--serif:/.test(css) && /var\(--serif\)/.test(css))
 ok('主按钮用朱红不是墨黑', /\.btn\.brand\{background:var\(--brand\)/.test(css))
 ok('选中态带朱红左标', /inset 2px 0 0 var\(--brand\)/.test(css))

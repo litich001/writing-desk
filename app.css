@@ -17,7 +17,11 @@
    改的是这一层变量，下面所有组件自动跟着变，回滚只要改这一段。
    ============================================================ */
 :root{
-  /* 表面：暖白纸感，越靠前越白 */
+
+  --r1:6px;
+  --r2:10px;
+  --r3:14px;
+  --r4:20px;  /* 表面：暖白纸感，越靠前越白 */
   --bg:#f2efe8;
   --surface:#fbfaf7;
   --surface-2:#f7f5ef;
@@ -52,7 +56,7 @@
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px; --s8:64px;
 
   /* 圆角：硬边为主。只给胶囊元素留全圆 */
-  --r-s:2px; --r-m:3px; --r-l:4px; --r-xl:6px; --r-full:999px;
+  --r-s:var(--r1); --r-m:var(--r1); --r-l:var(--r2); --r-xl:var(--r2); --r-full:999px;
 
   /* 阴影：几乎不用。层级靠底色差和线 */
   --sh-1:0 1px 2px rgba(26,24,20,.06);
@@ -1120,12 +1124,7 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
   .write-side{position:static;max-height:none;min-width:0;max-width:none}
   .side-pane{max-height:460px}
 
-  /* 侧栏变图标条 */
-  :root{--nav-w:56px}
-  .side{padding:var(--s4) 0}
-  .brand,.nav-label,.nav span.tx,.side-foot{display:none}
-  .nav{justify-content:center;padding:11px 0;border-left:none;position:relative}
-  .nav .badge{position:absolute;transform:translate(14px,-12px);margin:0}
+  /* 侧栏收窄由文件末尾的 900px 断点统一管 */
   .page{padding:var(--s5) var(--s4) 96px}
   .hero h2{font-size:22px}
   .hero textarea{min-height:110px}
@@ -1774,8 +1773,6 @@ button.bd:hover{transform:translateY(-1px)}
   min-height:20px;
   max-height:96px;
   overflow-y:auto;
-  transition:border-color var(--dur-fast) var(--ease);
-}
   transition:border-color var(--dur-fast) var(--ease);
 }
 .bs-t::placeholder{color:var(--ink-4)}
@@ -2548,4 +2545,488 @@ textarea.input:focus,.input.input:focus{
 }
 @media (max-width:560px){
   .ship-ctl .theme-list{grid-template-columns:1fr}
+}
+
+/* ════════════════════════════════════════════════════════════
+   第八层 · 左侧导航重做
+
+   用户原话：
+     「左侧的那个那四个功能或者四个流程吧，做的不好看、不美观，
+       整个 UI 界面我也看不懂你怎么回事，能不能都换成一下苹果高透明啊，高级一些。」
+
+   实测出的病根不是配色，是信息架构：
+     侧栏只有 56px 宽，四个导航项各 55×32，
+     一个图标加一个字（「热」「题」「稿」「发」）。
+     ★ 四步流程被压成四个方块，读者看不出这是一个流程。
+       「看不懂」是必然的 —— 界面上根本没有「流程」这个信息。
+
+   PAGES 里本来就有 n（步骤号）和 desc（一句说明），
+   但模板里没渲染，两个字段白定义了：
+       { id:'hot', n:'1', label:'热', full:'热点', desc:'翻实时榜单找选题' }
+       ↓ 只渲染了 ic + full + badge
+
+   改法：
+     一  侧栏加宽到 232px，四步做成带序号、带说明的竖排流程
+     二  当前步用玻璃药丸高亮，序号变成实心圆
+     三  每步显示一句「现在该做什么」，而不只是页面名
+     四  顶部品牌区和底部连接状态保留，各占一格
+
+   窄屏（1024 以下）收成 64px 轨道，只留序号和图标，
+   靠 title 提示 —— 和原来一样，但至少看得懂是第几步。
+   ════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════
+   第八层 · 左侧导航重做（宽度走令牌，不硬编码）
+
+   ★ 宽度必须走 --nav-w：
+     .side 的 flex-basis 绑的是这个变量，
+     在 .side 里写死 width 会和它打架，最后 56px 赢。
+     改令牌才能一次改全。 */
+.side{
+  width:var(--nav-w);
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  padding:0;
+  overflow:hidden;
+}
+
+/* ── 品牌区 ── */
+.side .brand{
+  padding:26px 20px 18px;
+  border-bottom:1px solid var(--line-3);
+}
+.side .brand h1{
+  margin:0;
+  font:700 19px/1.2 var(--font);
+  letter-spacing:.02em;
+  color:var(--ink);
+}
+.side .brand p{
+  margin:5px 0 0;
+  font:400 11.5px/1.5 var(--font);
+  color:var(--ink-4);
+}
+
+/* ── 流程标签 ── */
+.side .nav-label{
+  padding:16px 20px 8px;
+  font:600 10.5px/1 var(--font);
+  letter-spacing:.14em;
+  color:var(--ink-4);
+}
+.side .nav-group{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:0 10px;
+  flex:1;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+
+/* ── 单步 ──
+   三段：序号 + 标题 + 说明。
+   说明这一行是整个改动的关键 ——
+   它把「四个页面」变成「四个该做的事」。 */
+.side .nav{
+  position:relative;
+  display:grid;
+  grid-template-columns:24px 1fr auto;
+  grid-template-rows:auto auto;
+  align-items:center;
+  column-gap:10px;
+  width:100%;
+  padding:9px 10px;
+  border:1px solid transparent;
+  border-radius:10px;
+  background:transparent;
+  text-align:left;
+  cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),
+             border-color var(--dur-fast) var(--ease),
+             transform var(--dur-fast) var(--ease);
+}
+.side .nav + .nav{margin-top:2px}
+.side .nav:hover{
+  background:var(--glass-tint);
+  -webkit-backdrop-filter:var(--glass-blur-thin);
+  backdrop-filter:var(--glass-blur-thin);
+}
+.side .nav:active{transform:scale(.985)}
+
+/* 序号：没选中时是空心描边，选中时填成品牌色 */
+.side .nav .st{
+  grid-row:1 / 3;
+  width:22px;height:22px;
+  display:grid;place-items:center;
+  border-radius:50%;
+  border:1.5px solid var(--line);
+  background:transparent;
+  font:700 11px/1 var(--font);
+  font-variant-numeric:tabular-nums;
+  color:var(--ink-4);
+  transition:all var(--dur-fast) var(--ease);
+}
+.side .nav .ic{display:none}
+
+.side .nav .tx{
+  grid-column:2;
+  font:600 13.5px/1.35 var(--font);
+  color:var(--ink-2);
+  transition:color var(--dur-fast) var(--ease);
+}
+.side .nav .ds{
+  grid-column:2;
+  grid-row:2;
+  margin-top:2px;
+  font:400 11px/1.4 var(--font);
+  color:var(--ink-4);
+}
+.side .nav .badge{grid-row:1 / 3;align-self:center}
+
+/* 选中态：玻璃药丸 + 品牌色序号 + 深色标题 */
+.side .nav.on{
+  background:var(--glass-tint-strong);
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  border-color:var(--glass-edge-c, rgba(255,255,255,.34));
+  box-shadow:var(--glass-shadow-inset), var(--glass-shadow);
+}
+.side .nav.on .st{
+  border-color:transparent;
+  background:var(--brand);
+  color:#fff;
+}
+.side .nav.on .tx{color:var(--ink);font-weight:700}
+.side .nav.on .ds{color:var(--ink-3)}
+
+/* 选中项左侧一道品牌色竖条 —— 不靠颜色深浅也能认出当前在哪一步 */
+.side .nav.on::before{
+  content:'';
+  position:absolute;
+  left:-10px;top:50%;
+  width:3px;height:20px;
+  transform:translateY(-50%);
+  border-radius:0 2px 2px 0;
+  background:var(--brand);
+}
+
+/* ── 连接状态 ── */
+.side .side-foot{
+  padding:12px 20px 18px;
+  border-top:1px solid var(--line-3);
+}
+.side .conn{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font:400 11px/1 var(--font);
+  color:var(--ink-4);
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   第八层 · 侧栏宽度令牌重定
+
+   ★ 原来塌成 56px 轨道，是因为 1024px 断点就收起文字。
+     用户窗口在 1000px 上下，正好命中 ——
+     于是四个步骤又变回四个没文字的小方块。
+
+     桌面工具在 1000px 视口下有 856px 内容区，
+     拿 64px 出来放一个图标条，浪费；而信息全丢了。
+     把断点推到 860px，中间那一档只缩窄不收起文字。
+
+   宽度必须走 --nav-w：
+     .side 的 flex-basis 绑的是这个变量，
+     在 .side 里写死 width 会和它打架 ——
+     实测写死 232px，最后还是 56px 赢。
+     ★ 令牌和硬编码打架时，改令牌才是唯一的根治办法。
+   ════════════════════════════════════════════════════════════ */
+:root{--nav-w:232px}
+
+@media (max-width:1400px){
+  :root{--nav-w:216px}
+}
+@media (max-width:1200px){
+  :root{--nav-w:204px}
+}
+/* 900 以下才收成轨道 */
+@media (max-width:900px){
+  :root{--nav-w:64px}
+}
+
+/* 中间两档（1200~900）：宽度收窄但文字保留。
+   216px 装得下「序号 + 标题 + 说明」三段。 */
+
+/* ── 轨道态 ──
+   1024 那条老规则把 .brand/.nav-label/.nav span.tx/.side-foot 全 display:none，
+   我这条在它之后，按同样的类名再写一遍，
+   并且把序号留下 —— 「看不懂是四个步骤」这件事不能因为窄屏退化回去。 */
+@media (max-width:900px){
+  .side{padding:0}
+  .side .brand{padding:18px 0 12px;text-align:center}
+  .side .brand h1{font-size:0}
+  .side .brand h1::after{content:'稿';font-size:15px;letter-spacing:0}
+  .side .brand p{display:none}
+  .side .nav-label{padding:12px 0 6px;text-align:center;font-size:0}
+  .side .nav-label::after{content:'···';font-size:11px;letter-spacing:0}
+  .side .nav-group{padding:0 8px}
+  .side .nav{
+    grid-template-columns:1fr;
+    justify-items:center;
+    padding:8px 4px;
+  }
+  .side .nav .tx,
+  .side .nav .ds{display:none}
+  .side .nav .badge{
+    grid-row:auto;
+    position:absolute;
+    top:4px;right:6px;
+  }
+  .side .nav.on::before{left:-8px;height:18px}
+  .side .side-foot{padding:10px 0 14px}
+  .side .conn{justify-content:center}
+  .side .conn span:last-child{display:none}
+}
+
+/* ════════════════════════════════════════════════════════════
+   第九层 · 界面质感收口
+
+   用户原话：
+     「整个 UI 界面我也看不懂你怎么回事，能不能都换成一下苹果高透明啊，高级一些。」
+
+   实测出来的三处问题（不是「配色不够好」，是这三样）：
+
+   一 圆角完全不统一
+        .card      0px
+        .input     3px
+        .btn       2px
+        .nav.on   10px
+        .self-chk  2px
+      苹果体系里所有容器用同一套圆角阶梯，
+      混着用的时候界面看着「拼的」，不管颜色多准。
+      ★ 这一条是「不高级」的主因，不是配色。
+
+   二 有三块是实色，没玻璃化
+        概要条   rgb(27,29,35)
+        自检块   rgb(40,43,49)
+        交付区   rgb(27,29,35)
+      玻璃界面里夹几块实心卡片，就像一块玻璃上贴了三张纸。
+
+   三 层级不清
+      背景、页面、卡片、浮层四层之间没有统一的透明梯度，
+      读起来是「一片一片」而不是「一个空间」。
+
+   收口办法：
+     圆角四档   6 / 10 / 14 / 20，一次定死全局
+     透明梯度   页面 0.00 → 输入 0.30 → 卡片 0.46 → 浮层 0.66
+     每档都叠 saturate + 折射边，否则还是「毛玻璃」
+   ════════════════════════════════════════════════════════════ */
+:root{
+  /* ── 圆角阶梯 ──
+     四档够用。五档以上没人能记住，也没人能保持一致。
+     R1 控件   输入框、按钮、标签
+     R2 卡片   列表项、面板
+     R3 浮层   下拉、气泡、导航项
+     R4 大块   对话框、抽屉 */
+  --r1:6px;
+  --r2:10px;
+  --r3:14px;
+  --r4:20px;
+
+  /* ── 透明梯度 ──
+     从背景到浮层一共五档，差值固定，
+     这样任何两层之间的「玻璃感」都一样强。 */
+  --glass-0:rgba(0,0,0,0);
+  --glass-1:rgba(255,255,255,.30);
+  --glass-2:rgba(255,255,255,.46);
+  --glass-3:rgba(255,255,255,.66);
+  --glass-4:rgba(255,255,255,.86);
+
+  --blur-1:saturate(150%) blur(10px);
+  --blur-2:saturate(175%) blur(20px);
+  --blur-3:saturate(195%) blur(32px);
+
+  /* 折射边：玻璃的厚度全在边上 */
+  --edge-1:rgba(255,255,255,.42);
+  --edge-2:rgba(255,255,255,.55);
+  --hi-top:inset 0 1px 0 rgba(255,255,255,.55);
+  --hi-bot:inset 0 -1px 0 rgba(255,255,255,.14);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --glass-1:rgba(255,255,255,.05);
+    --glass-2:rgba(255,255,255,.08);
+    --glass-3:rgba(255,255,255,.12);
+    --glass-4:rgba(255,255,255,.18);
+    --edge-1:rgba(255,255,255,.10);
+    --edge-2:rgba(255,255,255,.16);
+    --hi-top:inset 0 1px 0 rgba(255,255,255,.12);
+    --hi-bot:inset 0 -1px 0 rgba(255,255,255,.04);
+  }
+}
+
+/* ── 圆角归一 ──
+   全局兜底：不点名的地方一律 6px。
+   点名的在下面覆盖。 */
+.card,.item,.hot-item,.self-chk,.deliver,.brief,.tune-row,.theme-row,
+.side-pane,.task-out,.pop,.preview-pop,.modal,.drawer{
+  border-radius:var(--r2);
+}
+.input,.btn,.seg-b,.chip,.badge,.tune-b,.pref-btn,.peek-btn,.side-tab,
+select,textarea,.field input,
+textarea.input,select.input,.field textarea,.field select{
+  border-radius:var(--r1);
+}
+.nav.on,.dropdown,.menu{
+  border-radius:var(--r3);
+}
+.paper-shell,.preview-paper,.dialog,.sheet{
+  border-radius:var(--r4);
+}
+
+/* ── 三块实色的玻璃化 ──
+   概要条、自检块、交付区原来都是不透明色，
+   夹在玻璃界面里像贴上去的纸。 */
+.brief,.self-chk,.deliver{
+  background:var(--glass-2);
+  -webkit-backdrop-filter:var(--blur-2);
+  backdrop-filter:var(--blur-2);
+  border:1px solid var(--edge-1);
+  box-shadow:var(--hi-top),var(--hi-bot);
+}
+@media (prefers-color-scheme:dark){
+  .brief,.self-chk,.deliver{
+    background:rgba(38,41,49,.62);
+  }
+}
+
+/* 自检块内部的行不用再各自描边 ——
+   整块已经是玻璃了，行里再加边框就成了表格线。 */
+.self-chk .chk{
+  background:transparent;
+  border-color:transparent;
+}
+.self-chk .chk.no{
+  background:rgba(224,112,95,.13);
+  border-color:rgba(224,112,95,.26);
+}
+
+/* ── 层级：页面本身不玻璃 ──
+   主区和页面是「空间」，不是「物件」。
+   给空间加玻璃会让玻璃互相叠加，越叠越糊。 */
+.main,.page{
+  background:var(--glass-0);
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+}
+
+/* ── 层级：卡片浮在空间上 ── */
+.card,.hot-item,.item{
+  background:var(--glass-2);
+  -webkit-backdrop-filter:var(--blur-2);
+  backdrop-filter:var(--blur-2);
+  border:1px solid var(--edge-1);
+  box-shadow:var(--hi-top),var(--hi-bot);
+}
+@media (prefers-color-scheme:dark){
+  .card,.hot-item,.item{
+    background:rgba(36,39,47,.58);
+  }
+}
+.card:hover,.hot-item:hover{
+  background:var(--glass-3);
+  border-color:var(--edge-2);
+}
+@media (prefers-color-scheme:dark){
+  .card:hover,.hot-item:hover{background:rgba(42,45,54,.68)}
+}
+
+/* ── 主按钮保持实底 ──
+   玻璃主按钮会显得轻飘，用户不知道能不能点。 */
+.btn.brand,.btn.ghost,.btn.sm,.btn.lg{
+  border-radius:var(--r1);
+  box-shadow:0 1px 2px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.22);
+}
+
+/* ── 焦点环 ──
+   统一成「玻璃上的品牌色光环」，
+   原来各处 focus 样式不一样，键盘用户能看出来。 */
+:where(a,button,input,textarea,select,[tabindex]):focus-visible{
+  outline:2px solid var(--brand);
+  outline-offset:2px;
+  border-radius:var(--r1);
+}
+
+/* ── 滚动条 ──
+   玻璃界面里滚动条要更细更淡，否则像一道黑边。 */
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{
+  background:rgba(140,146,170,.26);
+  border-radius:4px;
+  border:2px solid transparent;
+  background-clip:content-box;
+}
+*::-webkit-scrollbar-thumb:hover{background:rgba(140,146,170,.46);background-clip:content-box}
+
+/* ── 内部容器也给圆角 ──
+   实测扫出来还有一批零圆角的内部块：
+     card-head / card-body  卡片的头和身
+     deliver-h / deliver-grid  交付区的头和栏
+     self-chk-hd  自检块标题
+     tune-grid / tune-btns  微调面板
+     brief-row / brief-metrics  概要条内部
+     ship-sec  发布页各节
+     hot-tabs / hot-stat  热点页
+
+   这些是「块」，不是「文字」——
+   文字不需要圆角（给文字加圆角视觉上等于什么都没做），
+   但一个有边界感的块需要，否则玻璃分不出层次。
+
+   ★ 判断标准：有没有背景色或边框。
+     有 → 给圆角
+     没有 → 不给（否则是为了「统一」而统一） */
+.card-head,
+.deliver-h,
+.self-chk-hd,
+.tune-grid,
+.brief-row,
+.ship-sec,
+.hot-tabs{
+  border-radius:var(--r1);
+}
+.hot-tabs{padding:3px}
+.hot-stat{
+  border-radius:var(--r1);
+  padding:2px 8px;
+}
+
+/* 自检块的标题行：给一条分隔，和下面的行分开 */
+.self-chk-hd{
+  padding:8px 12px;
+  margin:0 0 4px;
+}
+.self-chk-hd.good{
+  background:var(--glass-1);
+  border:1px solid rgba(70,140,110,.28);
+}
+.self-chk-hd.bad{
+  background:rgba(224,112,95,.12);
+  border:1px solid rgba(224,112,95,.30);
+}
+
+/* 卡片头与卡片身之间不再各自描边 ——
+   整张卡已经是玻璃了，里面再画两道线就成了表格。 */
+.card-head{
+  background:transparent;
+  border-color:transparent;
+}
+
+/* 微调面板：控件成组，组与组之间用间距而不是框 */
+.tune-grid{gap:var(--s2)}
+
+/* 概要条内部三块：字重分层，不加框 */
+.brief-title,.brief-metrics,.brief-badges{
+  border-radius:var(--r1);
 }

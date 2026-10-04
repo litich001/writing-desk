@@ -93,7 +93,11 @@ function shell() {
     <div class="brand"><h1>写作台</h1><p>你出题，我成稿</p></div>
     <div class="nav-group">
       <div class="nav-label">流程</div>
-      ${PAGES.map(p => `<button class="nav" data-go="${p.id}"><span class="ic">${IC[p.id]}</span><span class="tx">${p.full}</span><span class="badge hide"></span></button>`).join('')}
+      ${PAGES.map(p => `<button class="nav" data-go="${p.id}" title="${p.full} · ${p.desc}">` +
+        `<span class="st">${p.n}</span>` +
+        `<span class="tx">${p.full}</span>` +
+        `<span class="ds">${p.desc}</span>` +
+        `<span class="badge hide"></span></button>`).join('')}
     </div>
     <div class="side-foot">
       <div class="conn"><span class="dot" id="dot"></span><span>连接中</span></div>
@@ -225,10 +229,50 @@ setInterval(() => { if (!isTyping()) poll(true) }, 4000)
 const RENDER = {}
 let curPage = 'hot'
 
+/* 重绘前记下滚动位置，重绘后放回去。
+
+   原来只有 snapFocus() 存焦点 —— 焦点和滚动是两回事，
+   只存焦点等于没存阅读位置：AI 一交稿，正在读第八节的人被弹回开头。
+
+   ★ 滚动容器是 <main>，不是 window。
+     实测 window.scrollHeight 和 innerHeight 相等（596/596），
+     body 的 overflow 是 hidden —— 整个应用是固定视口，
+     滚动全靠 <main> 自己的 scrollTop。
+     存 window.scrollY 会永远是 0，
+     还原时比 0 和 0 相等，看起来「保住了」，其实是假阳性。
+     ★ 假阳性比没修更坏：验收说过了，用户还在被弹回顶部。 */
+function snapScroll() {
+  const m = { els: [], win: window.scrollY || document.documentElement.scrollTop || 0 }
+  const main = document.querySelector('main')
+  if (main) m.els.push([main, main.scrollTop])
+  /* 发布页三栏各自能滚，也要一起存 */
+  document.querySelectorAll('.ship-col, .side-pane, .hot-list').forEach(e => {
+    m.els.push([e, e.scrollTop])
+  })
+  return m
+}
+
+function restoreScroll(m) {
+  if (!m) return
+  /* 重绘会重建容器里的一切，旧节点可能已经不在文档里了。
+     按 class 找回新节点，找不到就不还原那一个 ——
+     宁可漏一个容器，也不要把用户拽回一个不该去的位置。 */
+  m.els.forEach(([old, top]) => {
+    if (!old || !top) return
+    const key = old.className || old.tagName
+    const el = key === 'main'
+      ? document.querySelector('main')
+      : document.querySelector('.' + String(key).trim().split(/\s+/).join('.'))
+    if (el && el.isConnected) el.scrollTop = top
+  })
+  window.scrollTo({ top: m.win, behavior: 'instant' })
+}
+
 function refresh(bodyChanged) {
   lastStamp = S.stamp
   syncNav()
   const snap = snapFocus()
+  const sc = snapScroll()
   for (const id of Object.keys(RENDER)) {
     // 正在这一页输入 → 绝不动它。数据更新会在失焦后的下一轮 poll 补上。
     if (id === curPage && isTyping()) continue
@@ -247,6 +291,8 @@ function refresh(bodyChanged) {
   }
   if (bodyDirty) { bodyDirty = false; runAudit() }
   restoreFocus(snap)
+  /* 重绘会重建 DOM，滚动位置必须还原，否则被弹回顶部 */
+  restoreScroll(sc)
 }
 
 function syncNav() {
@@ -1482,7 +1528,13 @@ function selfCheck() {
     bold: cnt(/\*\*[^*]+\*\*/g),
     imgs: bodyImages().length,
     heads: (body.match(/^#{1,6}\s+\S/gm) || []).length,
-    srcs: cnt(/^来源[:：]|^资料来源|据.{0,10}(报道|通报)/gm),
+    /* 来源前缀：行首的「来源：」+ 正文里的转述框架。
+       只查行首那种是不够的，实测漏了九处。 */
+    srcs: cnt(/^来源[:：]|^资料来源|据.{0,10}(报道|通报)/gm) +
+          cnt(/(据|根据|按照)[^。，\n]{0,8}(报道|通报|文献|研究|数据|统计|说法)/g) +
+          cnt(/[^\n]{0,12}(期刊|论文|文章|文献|研究|报道)[^。，\n]{0,4}(上|里|中)?[^。，\n]{0,4}(写|说|表明|显示|发现|估算|提到|指出)/g) +
+          cnt(/(作者|专家|学者|研究人员|笔者|记者)[^。，\n]{0,8}(说|指出|认为|表示|提到|写道|介绍)/g) +
+          cnt(/(调查|研究)[^。，\n]{0,4}(显示|表明|发现|估算|证明)/g),
     titleOk,
     len100
   }
@@ -3002,6 +3054,48 @@ const RULES = [
 
      双引号改用直角引号「」。中文引号本来就该用直角引号，
      弯引号是 web 排版时代的产物，也是 AI 的默认输出。 */
+  /* ── 来源前缀（2026-10-04 补强）──────────────────────
+     用户原话「你一直在强调文中什么什么材料里说明。
+     那这些东西按理说不应该出现在你的正文中的。」
+
+     原来这条只查行首的「来源：」和「据某某报道」两种，
+     查不到正文中间的那九种：
+       期刊上一篇文章写砌体结构……
+       有研究估算，那套方案能让强度提四分之一
+       作者最后写了一句……
+       云南那边做田野调查的时候，老人说……
+       有位老人跟我说过一件事……
+
+     ★ 判据写窄和没有判据一样糟，它给出「已经检查过了」的错觉。
+       抓的是「引出事实的叙述框架」，不是某几个具体词。 */
+  { n:'来源前缀', re:/(据|根据|按照)[^。，\n]{0,8}(报道|通报|文献|研究|数据|统计|说法)/g, lv:'hi',
+    tip:'「据某某报道」这类不要写进正文。事实直接写进句子，出处放文末的来源表。' },
+  { n:'来源前缀', re:/[^\n]{0,12}(期刊|论文|文章|文献|研究|报道)[^。，\n]{0,4}(上|里|中)?[^。，\n]{0,4}(写|说|表明|显示|发现|估算|提到|指出)/g, lv:'hi',
+    tip:'「期刊上一篇文章写……」「有研究估算……」是转述，不是写作。直接说那件事。' },
+  { n:'来源前缀', re:/(作者|专家|学者|研究人员|笔者|记者)[^。，\n]{0,8}(认为|表示|指出|写道|介绍|说[，,]|写了一[句段篇])/g, lv:'hi',
+    tip:'「作者说」「专家表示」把读者挡在事实外面。直接给事实。' },
+  { n:'来源前缀', re:/(调查|研究)[^。，\n]{0,4}(显示|表明|发现|估算|证明|提到|指出|介绍|说)/g, lv:'hi',
+    tip:'「研究表明」是挡箭牌。结论直接写出来。' },
+  /* 泛指的人 + 转述动词。实测漏了四条，全是这个形态：
+       作者最后写了一句……
+       后来他写了一段话……
+       有位老人跟我说过一件事……
+       老人在云南做调查的时候提到……
+     前一条的主语词表只有（作者|专家|学者|笔者|记者），「老人」「他」不在表里。 */
+  /* 泛指的人 + 转述框。
+     只保留「跟我说」「跟我讲」「告诉我」「提到」这四个，
+     它们明确表示「我在转述别人」，引语不会长这样。
+     ★ 曾经把「他说」「她说」「老人说过」也放进来，结果误伤：
+         她说走的地方多了就不计较了
+         他邻居说他傻
+         大摆衣村有位老人说过
+       直接引语是写作，不是转述 —— 人物特稿本来就要求「要有原话」。
+       代价是漏掉「后来他写了一段话」那一种，值。 */
+  { n:'来源前缀', re:/[^\n。，]{0,8}(老人|老人家|老乡|村里人|他|她|对方|受访者|受访人)[^。，\n]{0,6}(跟我说|跟我讲|告诉我|提到了|提到过)(了|过)?/g, lv:'hi',
+    tip:'「有位老人跟我说过」「后来他写了一段话」是转述，不是写作。事情直接讲。' },
+  { n:'来源前缀', re:/[^\n]{0,10}那边[^。，\n]{0,6}(做|说|提到|提过|的[时候里])/g, lv:'md',
+    tip:'「那边说」含糊又像在交代出处。换成具体的人或地方。' },
+
   { n:'弯引号', re:/[“”]/g, lv:'hi',
     tip:'全篇不许用弯引号。改用直角引号「」。中文引号本来就该用直角引号。' },
   { n:'ASCII 引号', re:/"|'/g, lv:'hi',
