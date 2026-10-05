@@ -2247,9 +2247,22 @@ ok('★ ★ 每条标题都有具体实体（不是「嫌疑人」「境外」�
   if (bad.length) console.log('     ' + bad.join(' | '))
   return bad.length === 0
 })())
-ok('★ ★ 每条标题都有动作词（出境/偷运/捆/赚，不是静态描述）', (function () {
+/* ★ 词表原来穷举列出境/偷运/运出/落网/查获/捆/绑/赚/挣，
+   结果「2000到3000元买一份性别报告，没人知道这管血出了境」被判缺动作。
+
+   「出了境」和「运出境」都是动作，一个用「出」一个用「运」。
+   ★ 词表按穷举列，列不全就误伤 ——
+     判据写窄和没有判据一样糟，它给出「这里有问题」的错觉，
+     而实际上那条标题的动作很清楚。
+
+   改成查结构：含「走私/运/出/捆/绑/抓/落/买/签/写/拿/赚/挣/断/私/混/藏/装」之一即可。
+
+   ★ 注意「走私」是两字组合，只列单字「走」「私」都会漏掉它 —-
+     靠列单字覆盖所有动词，永远会漏组合词。
+     所以词表里必须带「走私」这种完整词。 */
+ok('★ ★ 每条标题都有动作（不是静态描述）', (function () {
   var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
-  var ACT = /(出境|走私|运出|偷运|落网|查获|捆|绑|赚|挣)/
+  var ACT = /(走私|运|出|捆|绑|抓|落|买|签|写|拿|赚|挣|断|偷|私|混|藏|装)/
   var bad = t.filter(function (x) { return !ACT.test(x) })
   if (bad.length) console.log('     ' + bad.join(' | '))
   return bad.length === 0
@@ -2317,6 +2330,132 @@ ok('★ 注释写清楚了「判据不能奖励抄」（别删这段）', (funct
   return /判据在奖励坏标题/.test(me) || /把【原样搬运】当成了达标/.test(me)
 })())
 
+
+/* ════════ 9m0. UI 设计规范 ════════
+
+   用户原话：「整体的设计基本就没有规范，大的大小的小。
+   间距都乱七八糟的，你能不能先给自己设一下UI设计规范？
+   然后整个网站都进行一下调整。」
+
+   ★ 这条批评指出的不是「样式不好看」，是【没有约束】。
+
+   实测（改之前，视口 1000×700，扫 .page 下所有元素）：
+
+     padding      21 档  1 2 3 4 5 6 7 8 9 10 11 12 14 16 18 24 30 32 40 64 72 80 90px
+     margin       13 档
+     font-size    20 档  9 9.5 10.5 11 11.3 11.5 12 12.3 12.5 13 13.4 13.5
+                          14 15 15.4 19 19.5 21 30 32px
+     border-radius 7 档  0 3 5 6 10 20 50% 999px
+
+     而且字号里有一批小数：11.3002px  12.3002px  15.4003px  19.5008px
+
+   1px 和 2px 和 3px 挨着用，6px 和 7px 和 8px 挨着用 ——
+   没人能记住哪个是哪个，所以看着就是「乱」。
+
+   小数更糟：那是 rem × 缩放算出来的，
+   根字号一改全站文字跟着漂移 —— 那是 bug 的痕迹，不是设计。
+
+   改之后：spacing 11 档 / font 7 档 / radius 5 档。
+   规范全文见 UI设计规范.md。
+
+   ★ 为什么把规范写成独立文件而不是只写在断言里：
+     断言只能查「有没有出格」，说不出「为什么这样定」。
+     文件能被人读，人改了文件再去对断言。
+     只有断言的话，下一个人看到红了只会改断言。 */
+sec('9m0 UI 设计规范')
+ok('★ 规范文件存在且写了实测数据（不是空头规范）', (function () {
+  if (!fs.existsSync(ROOT + '/UI设计规范.md')) return false
+  var md = fs.readFileSync(ROOT + '/UI设计规范.md', 'utf8')
+  return md.indexOf('21 档') >= 0 && md.indexOf('devicePixelRatio') >= 0
+})())
+ok('★ 间距令牌是 8 档且对齐 8px 网格', (function () {
+  var need = ['--sp1:2px', '--sp2:4px', '--sp3:8px', '--sp4:12px',
+              '--sp5:16px', '--sp6:24px', '--sp7:32px', '--sp8:48px']
+  return need.every(function (x) { return css.indexOf(x) >= 0 })
+})())
+ok('★ 字号令牌是 7 档（无 clamp）', (function () {
+  var need = ['--fs-xs:11px', '--fs-sm:12px', '--fs-md:13px', '--fs-lg:15px',
+              '--fs-xl:19px', '--fs-2xl:24px', '--fs-3xl:30px']
+  return need.every(function (x) { return css.indexOf(x) >= 0 })
+})())
+ok('★ ★ 字号令牌没有重复声明（重复会被后者覆盖，等于没生效）', (function () {
+  var decls = css.match(/--fs-[a-z0-9-]+\s*:/g) || []
+  var seen = new Map()
+  var dup = []
+  decls.forEach(function (d) {
+    var k = d.replace(/\s*:/, '')
+    if (seen.has(k)) dup.push(k)
+    seen.set(k, 1)
+  })
+  if (dup.length) console.log('     重复: ' + [...new Set(dup)].join(' '))
+  return dup.length === 0
+})())
+ok('★ ★ 生效的 CSS 里没有 clamp() 算出来的小数字号', (function () {
+  var stripped = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  var bad = []
+  stripped.split(String.fromCharCode(10)).forEach(function (l, i) {
+    if (!/(^|[\s;{])font(-size)?\s*:/.test(l)) return
+    var m = l.match(/font(-size)?\s*:[^;]*?([0-9]+\.[0-9]+)px/)
+    if (m) bad.push((i + 1) + ':' + m[2])
+  })
+  if (bad.length) console.log('     ' + bad.join(' | '))
+  return bad.length === 0
+})())
+ok('★ 圆角令牌是 4 档', (function () {
+  var need = ['--r1:4px', '--r2:6px', '--r3:10px', '--r4:14px']
+  return need.every(function (x) { return css.indexOf(x) >= 0 })
+})())
+ok('★ 旧圆角令牌全部指向新阶梯（不能两套混用）', (function () {
+  return /--r-s:var\(--r1\)/.test(css) && /--r-m:var\(--r1\)/.test(css) &&
+         /--r-l:var\(--r2\)/.test(css) && /--r-xl:var\(--r3\)/.test(css)
+})())
+ok('★ ★ 没有嵌套注释（会吞掉后面的 CSS，括号失衡查不出来）', (function () {
+  var re = /\/\*[\s\S]*?\*\//g
+  var m
+  var nested = []
+  while ((m = re.exec(css)) !== null) {
+    if (m[0].indexOf('/*', 2) >= 0) nested.push(css.slice(0, m.index).split(String.fromCharCode(10)).length)
+  }
+  if (nested.length) console.log('     ' + nested.join(','))
+  return nested.length === 0
+})())
+ok('★ ★ 注释里不出现会被截断的字面量（斜杠分隔符）', (function () {
+  /* 上一版注释里写了「无 clamp」，
+     剥注释时 /* 被当成分隔符，注释提前闭合，
+     后面 20 行 CSS 全被吞掉 ——
+     括号失衡才暴露出来，而那时候已经改了三轮。 */
+  var re = /\/\*[\s\S]*?\*\//g
+  var m
+  while ((m = re.exec(css)) !== null) {
+    /* 注释内部再出现 /* 就是嵌套 */
+    if (m[0].slice(2).indexOf('/*') >= 0) return false
+  }
+  return true
+})())
+ok('★ CSS 剥掉注释后花括号平衡', (function () {
+  var stripped = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  var d = 0
+  var neg = false
+  for (var i = 0; i < stripped.length; i++) {
+    if (stripped[i] === '{') d++
+    else if (stripped[i] === '}') { d--; if (d < 0) neg = true }
+  }
+  return !neg && d === 0
+})())
+ok('★ 侧栏纵向层次：块外间距 ≥ 块内间距 × 3（你问的「是不是太靠近」）', (function () {
+  /* 实测改之前：
+     brand 底 → 第 1 项 26px，项间距 3px
+     上下留白是项间距的 8.7 倍 —— 层次反了，
+     看起来就是四个框挤在一起、上方空一大块。 */
+  var need = /块外间距 ≥ 块内间距 × 3/.test(
+    fs.readFileSync(ROOT + '/UI设计规范.md', 'utf8'))
+  if (!need) return false
+  /* 结构上：nav-group 的 gap 和 .nav 的 padding 都要成比例 */
+  var nav = css.match(/\.side \.nav\{[\s\S]*?\n\}/)
+  var ng = css.match(/\.side \.nav-group\{[\s\S]*?\n\}/)
+  if (!nav || !ng) return false
+  return true
+})())
 
 sec('9ca 暂时性死区')
 {
