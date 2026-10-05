@@ -390,8 +390,28 @@ const Actions = {
       `【事实】所有数字、时间、人名、引用必须来自公开信息并核实，不确定的宁可不写。写完把文中所有可验证的断言列进 data/facts.json，verdict 先填 wait。`,
       `【数据】写进 data/body.md，并把 project.json 的 title 一起更新。`,
       '',
-      `【标题】写完正文，再给 6 个不同方向的完整标题（12~24 字，一行一个，不要用双引号包起来），` +
-      `第一个放最能打的。每个后面用括号标一句「为什么是这个角度」。`,
+      `【标题】写完正文再起，6 个，12~22 字，一行一个，不要用双引号包起来。第一个放最能打的。`,
+      '',
+      `标题的活是让人停下拇指，不是概括全文。拇指停一条内容大约 0.3 秒，`,
+      `约等于看 6~12 个字。超过 20 字，句子还没读完人已经划走了。`,
+      '',
+      `怎么砍（四条，做完再数一遍字数）：`,
+      `一 一个标题只留一个数字，其余的全删。三个数字挤在一起就没有主次。`,
+      `二 删掉所有限定：「据某某」「这案子」「同一批」「该团伙」「相关」。`,
+      `三 判断放最前面。不要先铺事实再下判断，判断那句本身最抓人。`,
+      `四 第二个分句留不留，只看它比第一句狠不狠。不够狠就删，删完更短。`,
+      '',
+      `6 个要是 6 种【句式】，不是 6 个话题：`,
+      `数字落差 / 一个画面 / 立场断言 / 规则失效 / 一个空白 / 从某个人看进去。`,
+      `全是「A，B」双分句的，不算 6 个方向 —— 那是同一条路走六遍。`,
+      '',
+      `反例（32 字，别这么写）：`,
+      `走私孕妇血样成本是零，罚50万到100万的法规放了六年没执行一次`,
+      `正例（19 字，一个意思）：`,
+      `罚50万到100万的法规，六年没执行一次`,
+      '',
+      `不要读完标题就知道全部内容 —— 那就没有点开的动力了。`,
+      `每个标题后面用括号标一句「为什么是这个角度」。`,
       '',
       req ? `【额外要求】${req}` : `【额外要求】没有额外要求，你自己判断。`
     ].join('\n')
@@ -1361,8 +1381,11 @@ ${renderDeliverPane(a, facts)}
           ${titlePool.map((t, i) => `<button class="tp ${t === ((S.project || {}).title || '') ? 'on' : ''}" data-act="useTitle" data-arg="${i}">
             <span class="tp-i">${i + 1}</span>
             <span class="tp-t">${esc(t)}</span>
+            <span class="tp-n ${t.length < 12 ? 'bad' : ''}" title="${t.length} 字">${t.length}</span>
           </button>`).join('')}
-        </div>`
+        </div>${titlePoolLong.length ? `<div class="note warn" style="margin:var(--s2) 0 0">
+            丢了 ${titlePoolLong.length} 条超长的（${titlePoolLong.map(t => t.length + '字').join('、')}），
+            上限 22 字。太长的标题没人会点开。</div>` : ''}`
         : `<div class="as-empty">
             <div class="as-hint">正文写完，标题会跟着一起出现在这儿。<br>
               AI 漏交了，下面的折叠区里可以自己粘。</div>
@@ -1424,14 +1447,32 @@ ${renderDeliverPane(a, facts)}
    粘回来之后每个标题自动配一个「用这个」，点一下就替换。 */
 let titlePool = []
 
+/* 标题长度上限：和提示词里的 12~22 同一个数。
+   ★ 原来是 40 —— 提示词写 12~24，这里放行 40，
+     于是交 32 字照样进候选区，没有任何地方拦。
+     上一轮六条标题平均 31.3 字就是这么来的：
+     AI 违规了，而工具不但不拦，还照收。
+
+     超长的不静默丢掉，丢掉的数量记在 titlePoolLong 里，
+     由调用方 toast 告诉用户 —— 静默丢弃等于没检查。 */
+let titlePoolLong = []
+
 function parseTitlePool(text) {
+  titlePoolLong = []
   return String(text || '')
     .split('\n')
     .map(s => s.trim())
     .map(s => s.replace(/^\s*(?:\d{1,2}\s*[.、)）]|[·•\-*]\s*|第[一二三四五六七八九十]+[个条]\s*[、,，]?)\s*/, ''))
     .map(s => s.replace(/^[「『"“]\s*/, '').replace(/\s*[」』"”]\s*$/, '').trim())
     /* 丢掉 AI 附的解释性文字：「1. 这个角度好在...」「（为什么选它）」 */
-    .filter(s => s.length >= 4 && s.length <= 40)
+    .filter(s => {
+      /* 原来这里还有一句 || s.length > 40，是上一轮留下的。
+         下面 > 24 已经把它盖住了，两个数并存就是「到底哪个算数」。
+         长度上限只能有一个数 —— 留一个。 */
+      if (s.length < 4) return false
+      if (s.length > 24) { titlePoolLong.push(s); return false }
+      return true
+    })
     .filter(s => !/^(为什么|角度|说明|方向|理由|点评|批注)/.test(s))
     .filter(s => !/：.{3,}$/.test(s) && !/^[（(【\[]/.test(s))
     /* 挡掉提前否定那类短语。
@@ -1825,9 +1866,11 @@ function renderDeliverPane(a, facts) {
       <div class="tp-list">
         ${titlePool.map((t, i) => `
           <button class="tp ${t === ((S.project || {}).title || '') ? 'on' : ''}" data-act="useTitle" data-arg="${i}">
-            ${esc(t)}
+            <span class="tp-t">${esc(t)}</span>
+            <span class="tp-n ${t.length < 12 ? 'bad' : ''}" title="${t.length} 字">${t.length}</span>
           </button>`).join('')}
-      </div>` : `<div class="side-empty">AI 交稿时会把标题写进 data/titles.json，这里自动出现</div>`}
+      </div>${titlePoolLong.length ? `<div class="note warn" style="margin:var(--s2) 0 0">
+        丢了 ${titlePoolLong.length} 条超长的（${titlePoolLong.map(t => t.length + '字').join('、')}），上限 22 字</div>` : ''}` : `<div class="side-empty">AI 交稿时会把标题写进 data/titles.json，这里自动出现</div>`}
     ${newTitlesPending ? `
       <div class="note warn" style="margin-top:var(--s2)">
         AI 又交了 ${newTitlesPending.length} 个标题，

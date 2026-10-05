@@ -464,12 +464,15 @@ select{
    用户要「直接一键替换了就好」，所以不能还要再去标题栏手动改。 */
 .tp-list{display:flex;flex-direction:column;gap:4px;margin-top:var(--s2)}
 .tp{
-  display:block;width:100%;text-align:left;padding:8px 12px;
+  display:flex;align-items:flex-start;gap:var(--sp2);
+  width:100%;text-align:left;padding:var(--sp3) var(--sp4);
   border:1px solid var(--line);border-left:3px solid var(--line);
   border-radius:var(--r-s);background:var(--surface);
   font:500 var(--fs-ctl)/1.5 var(--font);color:var(--ink-2);
   cursor:pointer;transition:all var(--dur) var(--ease);
 }
+.tp>.tp-t{flex:1;min-width:0}
+.tp>.tp-n{align-self:flex-start}
 .tp:hover{border-left-color:var(--brand);color:var(--ink);background:var(--surface-2)}
 .tp.on{border-left-color:var(--brand);background:#fbf0ee;color:var(--ink);font-weight:700}
 
@@ -2325,6 +2328,37 @@ body{
   font:700 11px/1 var(--font);
   font-variant-numeric:tabular-nums;
 }
+/* 标题字数：直接标在候选上。
+   上一轮六条平均 31.3 字，肉眼扫一排候选看不出谁啰嗦
+   —— 「都挺长的」和「哪条长」是两种信息，只有后者有用。 */
+.tp-n{
+  flex:0 0 auto;
+  align-self:flex-start;
+  min-width:20px;
+  padding:1px 5px;
+  border-radius:var(--r1);
+  background:var(--glass-tint-thin);
+  color:var(--ink-4);
+  font:600 var(--fs-xs)/1.6 var(--font);
+  font-variant-numeric:tabular-nums;
+  text-align:center;
+}
+.tp-n.bad{color:var(--brand);background:rgba(176,58,46,.12)}
+
+/* 交付区那个两列网格里，标题列只有 151px。
+
+   ★ 实测：一条 19 字的标题在 102px 的条目里折成 4 行，条目高 97px。
+     六条候选竖起来占掉半屏，比没有还难用。
+
+   根因不是排版，是这一栏装不下标题 ——
+   .deliver-grid-2 是 minmax(0,1.15fr) minmax(0,1fr)，
+   在 325px 宽的面板里分成 173 + 151。
+
+   所以标题这一栏跨两列，拿满 325px。
+   排版跟着宽度走：宽栏并排看长短，窄栏不受影响。 */
+.deliver-grid-2 .dc-title{grid-column:1 / -1}
+.deliver-grid .tp{display:block}
+.deliver-grid .tp .tp-n{display:inline-block;margin-left:var(--sp2)}
 .tp.on .tp-i{background:var(--brand);color:#fff}
 .tp-t{flex:1;min-width:0}
 
