@@ -1524,21 +1524,62 @@ ok('★ 标题没有提前否定（「先说结论」「免得有人误解」）
     return /(先说结论|免得有人|以免有人|不要误解|需要澄清|并不是说)/.test(x)
   })
 })())
-ok('★ 标题用词和正文重合度都过线（复用 title-check 的算法）', (function(){
-  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8').replace(/\s/g, '')
+/* ★ 这条原来查「标题用词和正文重合 ≥45%」。
+   那是好几轮都在用的判据，我前面几轮还因为它
+   把标题往正文用词上凑 —— 结果抄出一堆小节标题。
+
+   实测最典型的一条：
+     重合 96%   拼接 100%
+     「10万份孕妇血样被运出境」正是正文第一节开头那句
+
+   ★ 高重合度和低拼接率是对立的：
+     抄得越多，重合度越高，拼接率也越高。
+     这条判据在奖励「抄」，而 9k0 那条在禁止「抄」，
+     两条同时存在必然打架，而且打的是同一件事。
+
+   旧判据的初衷是「标题不能脱离正文」，
+   新判据的诉求是「标题要有新加工」—— 这两件事不冲突。
+   该管的是：
+     标题的数字必须和正文一致   → 没编数据，这是「对得上」的实质
+     整句不能是原句搬运         → 有加工
+
+   ★ 所以改成查数字。
+     不否定掉旧的，下一个人会照着重合度继续缝句子。 */
+ok('★ 标题里的数字和正文一致（没编数据）', (function(){
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
   var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
-  var low = []
+  var bn = new Set((body.match(/\d+/g) || []).map(function(n) {
+    return n.replace(/^0+/, '') || '0'
+  }))
+  var bad = []
   t.forEach(function(x) {
-    var c = x.replace(/[^一-龥]/g, '')
-    var grams = []
-    for (var i = 0; i + 2 <= c.length; i++) grams.push(c.slice(i, i + 2))
-    if (!grams.length) return
-    var hit = grams.filter(function(g) { return body.indexOf(g) >= 0 }).length
-    var pct = Math.round(hit / grams.length * 100)
-    if (pct < 45) low.push(c.slice(0, 12) + ' ' + pct + '%')
+    (x.match(/\d+/g) || []).forEach(function(n) {
+      n = n.replace(/^0+/, '') || '0'
+      if (!bn.has(n)) bad.push(x.slice(0, 16) + ' 数字 ' + n)
+    })
   })
-  if (low.length) console.log('     ' + low.join(' | '))
-  return low.length === 0
+  if (bad.length) console.log('     ' + bad.join(' | '))
+  return bad.length === 0
+})())
+/* 这条原来查「文件里已经没有那条老断言了」——
+   可它自己就在同一个文件里，indexOf 一定能找到，
+   恒为假。
+
+   ★ 拿「文件里没有某句话」当断言，
+     而断言本身就在这个文件里 —— 构造上就不可能成立。
+
+   改成查真正的冲突：标题判据里不该再有用词重合度当门槛。 */
+ok('★ 标题判据里不再有用词重合度当门槛（会逼人抄正文）', (function () {
+  var me = fs.readFileSync(ROOT + '/验收测试.js', 'utf8')
+  /* 找出所有 ok() 里还用 pct < NN 判标题的 */
+  var hits = []
+  me.split(String.fromCharCode(10)).forEach(function (l, i) {
+    if (/^ok\(/.test(l) && /重合/.test(l) && /(pct|cv|overlap)/i.test(l)) {
+      hits.push((i + 1) + ': ' + l.trim().slice(0, 60))
+    }
+  })
+  if (hits.length) console.log('     ' + hits.join(' | '))
+  return hits.length === 0
 })())
 ok('★ ★ 要求词里点名了「整篇」和「三个以上小节」', (function(){
   try {
@@ -2140,6 +2181,141 @@ ok('★ 注释写清楚了「判据跟着风格走」这个模式（别当废话
          /本轮为同一件事修了四条断言/.test(me)
 })())
 
+
+
+/* ════════ 9k0. 标题要有信息，不是小节标题 ════════
+
+   用户原话：「标题非常烂，一点信息也没有。」
+
+   ★ 这条批评指出的不是「标题不好」，是【判据在奖励坏标题】。
+
+     项目里一直用「标题用词和正文重合 ≥60%」当判据。
+     这条判据把【原样搬运】当成了达标 ——
+     抄得越像，重合度越高，分越高。
+
+     于是上一轮那批标题全是缝句子：
+       正文写「链条共四段」  →  标题写「链条共四段」
+       正文写「四拨人各干一段，互相不通气」 → 标题照搬
+
+     实测上一轮六条，四条不合格：
+
+       [4] 链条共四段，四拨人各干一段，互相不通气
+           数字 0  实体 0  正文原句占 1/1   ← 这就是小节标题
+       [2] 她把血交给一个穿白大褂的人，之后的事和她无关
+           数字 0
+       [3] 26名嫌疑人全部在国内落网，接样本的境外一方，通报名单上没有
+           实体 0（「嫌疑人」「境外」都不是具体的东西）
+       [6] 罚款50万到100万的法条，本案没有一个人知情同意
+           实体 0
+
+     ★ 标题里没有新信息，只有正文的目录。
+       读者点进来之前就知道文章分几段了，那就不用点。
+
+   ════════ 新的判据 ════════
+
+   读者不点进正文，标题本身要能告诉他三件事：
+
+     什么   血样 / 孕妇 / 条例
+     多少   一个数字
+     怎么了 出境 / 走私 / 捆 / 赚
+
+   三样齐了才算有信息。缺哪样都不行：
+     缺「多少」  → 「孕妇血样被偷运出境」空泛
+     缺「什么」  → 「26人落网，境外没人管」不知道谁的事
+     缺「怎么了」→ 「链条共四段」这是小节标题不是新闻
+
+   还要看拼接率：标题里每 6 字有多少是从正文原样搬的。
+   超过一半 = 没加工 = 没新信息。
+
+   ★ 拼接率和重合度是一对：
+     重合度高往往因为抄得多，
+     而抄得多 = 没加工 = 没有信息。
+     所以重合度保留（保证标题和正文对得上），
+     但降级为辅助项，不再是主判据。 */
+sec('9k0 标题要有信息')
+
+ok('★ ★ 每条标题都有数字', (function () {
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  var bad = t.filter(function (x) { return !/\d/.test(x) })
+  if (bad.length) console.log('     ' + bad.join(' | '))
+  return bad.length === 0
+})())
+ok('★ ★ 每条标题都有具体实体（不是「嫌疑人」「境外」这种泛称）', (function () {
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  var ENT = /(孕妇|血样|试管|实验室|化验所|水客|海关|性别|基因|条例)/
+  var bad = t.filter(function (x) { return !ENT.test(x) })
+  if (bad.length) console.log('     ' + bad.join(' | '))
+  return bad.length === 0
+})())
+ok('★ ★ 每条标题都有动作词（出境/偷运/捆/赚，不是静态描述）', (function () {
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  var ACT = /(出境|走私|运出|偷运|落网|查获|捆|绑|赚|挣)/
+  var bad = t.filter(function (x) { return !ACT.test(x) })
+  if (bad.length) console.log('     ' + bad.join(' | '))
+  return bad.length === 0
+})())
+ok('★ ★ 拼接率不超过一半（标题不是正文的搬运）', (function () {
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  /* ★ 必须先剥掉 H1 ——
+     body.md 的第一行是 project.title 的镜像，
+     那是标题自己，不是正文内容。
+
+     不剥的话会死循环：
+       写标题 → 同步 H1 → 标题成了正文首句
+               → 拼接率 100% → 判据红 → 改标题 → 又同步…
+     实测第 1 条就是这么卡住的：两句全是「原句」，
+     而写标题的脚本自己算出来是「新造」。
+
+     ★ 判据要比的是「标题 vs 正文内容」，
+       不是「标题 vs 标题的镜像」。 */
+  body = body.split(String.fromCharCode(10)).filter(function (l) {
+    return !/^#\s/.test(l)
+  }).join('')
+  body = body.replace(/\s/g, '')
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  var bad = []
+  t.forEach(function (x) {
+    var seg = x.split(/[，。]/).filter(function (s) { return s.length > 5 })
+    if (!seg.length) return
+    var lifted = seg.filter(function (s) { return body.indexOf(s) >= 0 }).length
+    var rate = lifted / seg.length
+    if (rate > 0.5) bad.push(x.slice(0, 18) + ' ' + Math.round(rate * 100) + '%')
+  })
+  if (bad.length) console.log('     ' + bad.join(' | '))
+  return bad.length === 0
+})())
+ok('★ 没有标题就是小节标题（「链条共四段」这类是目录不是标题）', (function () {
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  /* 小节标题的特征：只讲结构、讲环节、讲分几段 */
+  return !t.some(function (x) {
+    return /(共[一二三四五六七八九十\d]+[段环节部分])|(这段|这一节)|(四拨人|分几段)/.test(x)
+  })
+})())
+ok('★ 标题长度 18~36 字（太短没信息，太长手机上截断）', (function () {
+  var t = JSON.parse(fs.readFileSync(ROOT + '/data/titles.json', 'utf8'))
+  var bad = t.filter(function (x) { return x.length < 18 || x.length > 36 })
+  if (bad.length) console.log('     ' + bad.join(' | '))
+  return bad.length === 0
+})())
+ok('★ ★ 上面四条判据能拦住上一轮那批烂标题（反向验证）', (function () {
+  /* 这几条烂标题是真实产出过的，必须能被新判据拦住。
+     判条只要对新数据有效、对旧数据漏判，就说明它在拟合而不是在检测。 */
+  var bad = [
+    '链条共四段，四拨人各干一段，互相不通气',
+    '她把血交给一个穿白大褂的人，之后的事和她无关',
+    '26名嫌疑人全部在国内落网，接样本的境外一方，通报名单上没有',
+    '罚款50万到100万的法条，本案没有一个人知情同意'
+  ]
+  var ENT = /(孕妇|血样|试管|实验室|化验所|水客|海关|性别|基因|条例)/
+  var ACT = /(出境|走私|运出|偷运|落网|查获|捆|绑|赚|挣)/
+  return bad.every(function (x) {
+    return !/\d/.test(x) || !ENT.test(x) || !ACT.test(x)
+  })
+})())
+ok('★ 注释写清楚了「判据不能奖励抄」（别删这段）', (function () {
+  var me = fs.readFileSync(ROOT + '/验收测试.js', 'utf8')
+  return /判据在奖励坏标题/.test(me) || /把【原样搬运】当成了达标/.test(me)
+})())
 
 
 sec('9ca 暂时性死区')
