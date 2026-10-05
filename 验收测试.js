@@ -6,7 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
 import { execSync, execFileSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 const BASE = 'http://127.0.0.1:8848'
 /* 用 import.meta.url 定位，不再硬编码路径 ——
    硬编码过一次，换机器/换目录就全挂，而且挂得很难看。 */
@@ -183,10 +183,121 @@ ok('已备份生产数据', typeof BACKUP.body === 'string', BACKUP.body.length 
 ok('图片库非空', BACKUP.images.length > 0, BACKUP.images.length + ' 张')
 ok('每张图有 file 和 url', BACKUP.images.every(x => x.file && x.url))
 ok('每张图在磁盘存在', BACKUP.images.every(x => fs.existsSync(path.join(ROOT, 'data/images', x.file))))
+/* markdown 里的本地图片写法是 /data/images/<file>（layout.mjs 定的），
+   images.json 里存的是裸文件名 <file>。
+   两边对不上就全红 —— 所以比之前先剥前缀。 */
+const bare = p => String(p).replace(/^\/data\/images\//, '').split('#')[0].split('?')[0]
 const refs = [...BACKUP.body.matchAll(/^!\[.*\]\((.*?)\)$/gm)].map(m => m[1])
 ok('正文图片引用数 > 0', refs.length > 0, refs.length + ' 处')
-ok('正文引用的图都在图片库', refs.every(f => BACKUP.images.some(x => x.file === f)), refs.join(','))
-ok('正文引用的图都在磁盘', refs.every(f => fs.existsSync(path.join(ROOT, 'data/images', f))))
+/* ★ 这条判据写的时候，正文一直是 0 张图。
+   Array.every 对空数组恒为 true —— 它从来没有运行过。
+   现在有图了才暴露：refs 是 markdown 里的全路径 /data/images/x.jpg，
+   而 images.json 里存的是裸文件名，两边压根不是一个东西。
+
+   剥掉 /data/images/ 前缀再比。 */
+ok('正文引用的图都在图片库', refs.every(f => BACKUP.images.some(x => x.file === bare(f))), refs.map(bare).join(','))
+ok('正文引用的图都在磁盘', refs.every(f => fs.existsSync(path.join(ROOT, 'data/images', bare(f)))))
+/* ════════ 6b. 配图能不能真的显示出来 ════════
+
+   用户原话：「为什么那么少？你没有联网搜索补充素材图像吗？」
+
+   补了 3 张央视原图之后才发现一整类问题 ——
+   配图不是「正文里写了 ![]()」就算数，要一路通到浏览器。
+
+   实际事故链：
+     正文按 markdown 通用习惯写了全路径 /data/images/x.jpg
+     → app.js:1291 无条件再拼一层 /data/images/
+     → src 变成 /data/images/%2Fdata%2Fimages%2Fx.jpg
+     → 缩略图裂开，公众号导出取 base64 也取不到
+
+   ★ 根因不是「我写错了」，是【约定只写在提示词里】：
+     app.js:386 给 AI 的提示写「按 ![说明](文件名) 插进正文」
+     app.js:1284 输入框 placeholder 也写「图片写 ![图注](文件名)」
+     两处都说了，但没有任何一条断言查它。
+
+   写在哪里不算约定，被检查才算。 */
+
+/* 约定写在代码里，AI 读不到 —— 它读的是手册。
+   app.js:386 和 1284 都写了裸文件名，但手册没写，
+   所以「按 markdown 通用习惯写全路径」这条路是通的。 */
+ok('手册写了裸文件名这条约定（AI 只读手册）', (function () {
+  var md = fs.readFileSync(ROOT + '/AI操作手册.md', 'utf8')
+  return md.indexOf('裸文件名') >= 0 && /!\[[^\]]*\]\(jz_[^)]+\.jpg\)/.test(md)
+})())
+ok('手册写了「对不上的图比没有图更糟」和 keep:false', (function () {
+  var md = fs.readFileSync(ROOT + '/AI操作手册.md', 'utf8')
+  return md.indexOf('对不上的图比没有图更糟') >= 0 && md.indexOf('keep:false') >= 0
+})())
+ok('★ 正文图片引用用裸文件名（app.js 的约定，不带 /data/images/ 前缀）',
+  refs.every(f => !f.startsWith('/') && !f.startsWith('data:') && !f.startsWith('http')),
+  refs.join(','))
+ok('★ 裸文件名这条约定同时写在提示词和输入框提示里（只写一处会漏）',
+  /!\[说明\]\(文件名\)/.test(js) && /!\[图注\]\(文件名\)/.test(js))
+ok('★ app.js 有 imgSrc() 作为 src 的唯一拼法',
+  /function imgSrc\(/.test(js))
+/* ★ 判据要判代码，不能判散文。
+   上一版直接扫全文，结果匹配到的是我自己写的注释
+   「之前是 1291 行裸拼 "/data/images/" + encodeURIComponent(f)」
+   —— 注释里为了讲清楚事故，把坏写法原样抄了一遍。
+
+   所以先剥注释再扫。
+   而且 imgSrc 函数体里本来就该有这一拼法，
+   所以判据是「剥注释后只剩 imgSrc 内部那一处」。 */
+ok('★ app.js 里 /data/images/ 的拼法只在 imgSrc 里（别处裸拼会二次加前缀）', (function () {
+  var code = js.replace(/\/\*[\s\S]*?\*\//g, '').split(String.fromCharCode(10))
+    .map(function (l) { return l.replace(/^\s*\/\/.*$/, '') }).join(String.fromCharCode(10))
+  var at = code.indexOf('function imgSrc(')
+  if (at < 0) return false
+  var hits = []
+  var re = /["'`]\/data\/images\/["'`]\s*\+\s*encodeURIComponent/g
+  var m
+  while ((m = re.exec(code)) !== null) hits.push(m.index)
+  /* 允许的只有 imgSrc 内部那一处；函数体按 400 字节窗口认 */
+  var bad = hits.filter(function (h) { return !(h > at && h < at + 400) })
+  if (bad.length) console.log('     imgSrc 之外还有 ' + bad.length + ' 处裸拼')
+  return bad.length === 0 && hits.length >= 1
+})())
+ok('★ imgSrc 会剥掉已有的 /data/images/ 前缀（两种写法结果一致）',
+  /imgSrc[\s\S]{0,400}replace\(\/\^\\\/data\\\/images\\\//.test(js))
+ok('★ layout.mjs 的 toLocalPaths 也是剥前缀再查映射', (function () {
+  var lm = fs.readFileSync(ROOT + '/engine/layout.mjs', 'utf8')
+  var t = lm.match(/export function toLocalPaths[\s\S]{0,700}/)
+  return !!t && /replace\(\/\^\\\/data\\\/images\\\//.test(t[0])
+})())
+
+/* 这条是真正能抓住问题的判据：渲染 + 取一次，确认不是裂图 */
+ok('★ ★ 排版渲染出的 img src 真能取到（不是裂图）', await (async () => {
+  const lm = await import(pathToFileURL(ROOT + '/engine/layout.mjs').href)
+  const md0 = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  const im = JSON.parse(fs.readFileSync(ROOT + '/data/images.json', 'utf8'))
+  const snap = im.map(x => ({ ...x, url: '/data/images/' + encodeURIComponent(x.file) }))
+  const r = lm.preview(md0, 'classic', snap)
+  const srcs = [...(r.body.match(/<img[^>]*src="([^"]+)"/g) || [])]
+    .map(x => x.replace(/^<img[^>]*src="/, '').replace(/"$/, ''))
+  if (!srcs.length) { console.log('     渲染结果里没有 img'); return false }
+  for (const s of srcs) {
+    if (/%2F|%20/.test(s)) { console.log('     src 被二次编码: ' + s); return false }
+    const q = await fetch(BASE + s)
+    if (q.status !== 200 || !/^image\//i.test(q.headers.get('content-type') || '')) {
+      console.log('     取不到: ' + s + ' → ' + q.status)
+      return false
+    }
+  }
+  console.log('     ' + srcs.length + ' 张都取到了')
+  return true
+})())
+ok('★ ★ img-b64 能按裸文件名取到（公众号导出靠它内联图片）', await (async () => {
+  const r = await fetch(BASE + '/api/img-b64', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ file: bare(refs[0]) })
+  })
+  if (!r.ok) { console.log('     HTTP ' + r.status); return false }
+  const j = await r.json()
+  const okB = typeof j.dataUri === 'string' && /^data:image\//.test(j.dataUri)
+  if (!okB) console.log('     拿到的不是 data:image')
+  return okB
+})())
 ok('每张图 URL 可访问', await (async () => {
   for (const x of BACKUP.images.slice(0, 5)) {
     const r = await fetch(BASE + x.url)
@@ -2804,7 +2915,29 @@ ok('★ 正文有配图', (fs.readFileSync(ROOT + '/data/body.md', 'utf8').match
 /* 图注要写出处，但不能写死某一家 ——
    上一版写的是「图/澎湃」，换一篇稿子就误判。
    通用判据：图注里必须有「图/」加上来源名。 */
-ok('图注写了出处', /!\[[^\]]*图\/[^\]]+\]\(/.test(fs.readFileSync(ROOT + '/data/body.md', 'utf8')))
+/* ★ 原来查的是「图/」这个分隔符：
+       /!\[[^\]]*图\/[^\]]+\]\(/
+
+   而 AI操作手册.md 第 337 行写的是「图：…」「出处：…」。
+   手册一种写法、断言另一种写法 —— AI 照手册写就报红，
+   然后下一个人去改断言，改到最后变成「有图就行」。
+
+   根因是查了【分隔符】而不是【图注该有的东西】。
+   图注要两样：说明图里是什么、这张图哪来的。
+   分隔符只是写法之一，换个写法不该误报。
+
+   ★ 而且原判据更松：只要 alt 里出现「图/」两个字就过，
+     说明和来源都没有也能过。这条改完是变严了。 */
+const BODY_MD = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+const CAPS = (BODY_MD.match(/!\[([^\]]*)\]\([^)]+\)/g) || [])
+ok('★ 每条图注都说明了图里是什么（不是「图片1」）',
+  CAPS.length > 0 && CAPS.every(c => /图[:：]/.test(c) && c.replace(/^!\[/, '').length > 12),
+  CAPS.length + ' 条')
+ok('★ 每条图注都写了出处',
+  CAPS.length > 0 && CAPS.every(c => /(出处[:：]|图\/)[^\]]+/.test(c)),
+  CAPS.filter(c => !/(出处[:：]|图\/)/.test(c)).join(' '))
+ok('★ 图注不能出现英文双引号（会破 markdown-it 渲染）',
+  CAPS.every(c => !/"/.test(c)))
 
 /* ════════ 9c6e. 排版内核：中文书名号 + 加粗 ════════
    实测踩到：`按**《消费者权益保护法》第五十五条**处理。` 渲染不出来，

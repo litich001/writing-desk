@@ -1288,7 +1288,7 @@ function renderWrite() {
           <div class="iw-row">
             ${bodyImages().map((f, i) => `<button class="iw-item" data-act="imgWhere" data-arg="${i}"
               title="${esc(f)}">
-              <img src="/data/images/${encodeURIComponent(f)}" alt="" loading="lazy">
+              <img src="${imgSrc(f)}" alt="" loading="lazy">
               <span class="n">${i + 1}</span>
             </button>`).join('')}
           </div>
@@ -1316,7 +1316,7 @@ function renderWrite() {
           <div class="lib-row">
             ${bank.map(im => `<div class="lib-item ${refs.has(im.file) ? 'used' : ''}" data-file="${esc(im.file)}">
               <div class="pic" data-act="insertImg" data-arg="${im.id}" title="插入正文">
-                <img src="${esc(im.url || '/data/images/' + encodeURIComponent(im.file))}" alt="" loading="lazy">
+                <img src="${esc(imgSrc(im.url || im.file))}" alt="" loading="lazy">
                 ${refs.has(im.file) ? '<span class="ok">已用</span>' : ''}
               </div>
               <input class="input xs" value="${esc(im.cap || '')}" placeholder="图注" oninput="Actions.setImg(${im.id}, this.value)">
@@ -2425,7 +2425,7 @@ function suggestImages() {
     <div class="card-body">
       ${imgPlan.map((p, k) => `
         <div class="plan">
-          <img src="${esc(p.img.url || '/data/images/' + encodeURIComponent(p.img.file))}" alt="" loading="lazy">
+          <img src="${esc(imgSrc(p.img.url || p.img.file))}" alt="" loading="lazy">
           <div class="pt">
             <div class="pl">插到第 <b>${p.at + 1}</b> 段之后</div>
             <div class="px">…${esc(p.text.slice(-46))}</div>
@@ -2510,6 +2510,26 @@ function inlineComputed(src, dst) {
     if (css) d[i].setAttribute('style', css)
   }
   return dst
+}
+
+/* 图片 src 的唯一拼法。
+   ★ 为什么要有这个函数：
+     正文里写的是裸文件名（app.js 386 行给 AI 的提示、
+     1284 行输入框的 placeholder 都是这个写法），
+     而渲染时要补成 /data/images/<file>。
+
+     之前是 1291 行裸拼 "/data/images/" + encodeURIComponent(f)。
+     碰上正文里已经写了全路径的，就拼成
+     /data/images/%2Fdata%2Fimages%2Fxxx.jpg → 裂图。
+
+     ★ 更要紧的是它掩盖了一个约定：
+       约定只写在提示词里，没写在任何断言里，
+       所以写错了要等到图裂了才知道。
+       现在既有这个函数，也有验收断言。 */
+function imgSrc(f) {
+  const s = String(f || '')
+  if (/^(https?:)?\/\//.test(s) || s.startsWith('data:')) return s
+  return '/data/images/' + encodeURIComponent(s.replace(/^\/data\/images\//, ''))
 }
 
 function bodyImages() {

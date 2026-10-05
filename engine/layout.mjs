@@ -52,7 +52,13 @@ export { THEMES }
 export function toLocalPaths(mdText, imageMap) {
   return mdText.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (m, alt, src) => {
     if (/^(https?:)?\/\//.test(src) || src.startsWith('data:') || src.startsWith('file:')) return m
-    const f = imageMap[src]
+    /* 先剥前缀再查映射 ——
+       之前只按 src 原样查映射，正文里写全路径 /data/images/x.jpg
+       时查不到，就「原样保留」。结果凑巧是对的（因为 toLocalPaths
+       的输出格式恰好也是全路径），但那是蒙的：
+         换个调用方，或原样保留的那一份被二次加工，就出裂图。 */
+    const bare = src.replace(/^\/data\/images\//, '')
+    const f = imageMap[bare] || imageMap[src]
     if (!f) return m
     return `![${alt}](/data/images/${f})`
   })

@@ -305,7 +305,10 @@
     "risk": "未评估",
     "url": "/data/images/jz_muo6vmne_0.jpg",
     "pageUrl": "https://www.thepaper.cn/newsDetail_forward_34171996",
-    "at": "2026-09-30T14:17:02.279Z"
+    "at": "2026-09-30T14:17:02.279Z",
+    "keep": false,
+    "topic": "一年举报520次（澎湃漫评）",
+    "reason": "属于《一年举报520次（澎湃漫评）》，不是当前稿的配图"
   },
   {
     "id": "gmuo6vn0p.png",
@@ -315,7 +318,10 @@
     "risk": "未评估",
     "url": "/data/images/jz_muo6vn0k_2.png",
     "pageUrl": "https://www.thepaper.cn/newsDetail_forward_34171996",
-    "at": "2026-09-30T14:17:02.279Z"
+    "at": "2026-09-30T14:17:02.279Z",
+    "keep": false,
+    "topic": "一年举报520次（澎湃漫评）",
+    "reason": "属于《一年举报520次（澎湃漫评）》，不是当前稿的配图"
   },
   {
     "id": "gmuqxrawo.png",
@@ -325,7 +331,10 @@
     "risk": "未评估",
     "url": "/data/images/jz_muqxrary_1.png",
     "pageUrl": "https://news.qq.com/rain/a/20261002A053PX00",
-    "at": "2026-10-02T12:25:01.938Z"
+    "at": "2026-10-02T12:25:01.938Z",
+    "keep": false,
+    "topic": "退休女子南极游（旅行）",
+    "reason": "属于《退休女子南极游（旅行）》，不是当前稿的配图"
   },
   {
     "id": "gmuqxrawo.png_6ii3",
@@ -335,6 +344,46 @@
     "risk": "未评估",
     "url": "/data/images/jz_muqxrawf_2.png",
     "pageUrl": "https://news.qq.com/rain/a/20261002A053PX00",
-    "at": "2026-10-02T12:25:01.938Z"
+    "at": "2026-10-02T12:25:01.938Z",
+    "keep": false,
+    "topic": "退休女子南极游（旅行）",
+    "reason": "属于《退休女子南极游（旅行）》，不是当前稿的配图"
+  },
+  {
+    "id": "gmuv0f7g8.jpg",
+    "file": "jz_muv0f7ac_0.jpg",
+    "cap": "广州海关缉私局侦查一处副处长郑重接受采访。正文引用了他说的「这条链子2022年就被盯上了」",
+    "src": "news.cctv.com",
+    "risk": "低。央视新闻官方画面，人物为公开通报的办案负责人",
+    "url": "/data/images/jz_muv0f7ac_0.jpg",
+    "pageUrl": "https://news.cctv.com/2025/12/17/ARTIP5TCJFTBanuU5hioemaE251217.shtml",
+    "at": "2026-10-05T08:50:41.142Z",
+    "keep": true,
+    "topic": "超10万份孕妇血样被偷运出境"
+  },
+  {
+    "id": "gmuv0f7g8.jpg",
+    "file": "jz_muv0f7cr_1.jpg",
+    "cap": "广州海关稽查业务管理科副科长时茜",
+    "src": "news.cctv.com",
+    "risk": "低。央视新闻官方画面",
+    "url": "/data/images/jz_muv0f7cr_1.jpg",
+    "pageUrl": "https://news.cctv.com/2025/12/17/ARTIP5TCJFTBanuU5hioemaE251217.shtml",
+    "at": "2026-10-05T08:50:41.142Z",
+    "keep": false,
+    "reason": "正文没有引用她。放进去就是自己违反「图要与内容对得上」这条 —— 一张对不上的图比没有图更糟，它让人以为这篇有现场采访",
+    "topic": "超10万份孕妇血样被偷运出境"
+  },
+  {
+    "id": "gmuv0f7g8.jpg",
+    "file": "jz_muv0f7g2_2.jpg",
+    "cap": "收网现场，警员在运输车辆上。正文第一节写的265名警力三地同步收网",
+    "src": "news.cctv.com",
+    "risk": "低。央视新闻官方画面，人脸已打码",
+    "url": "/data/images/jz_muv0f7g2_2.jpg",
+    "pageUrl": "https://news.cctv.com/2025/12/17/ARTIP5TCJFTBanuU5hioemaE251217.shtml",
+    "at": "2026-10-05T08:50:41.142Z",
+    "keep": true,
+    "topic": "超10万份孕妇血样被偷运出境"
   }
 ]

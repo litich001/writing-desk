@@ -43,6 +43,10 @@ else console.log('  PASS 加粗配对（' + bold / 2 + ' 处）')
 
 // 6. 必填要素
 const must = [
+  /* U+FFFD 替换符 = 写坏了一个字。
+     它能读能渲染字数也够，眼看过去像「三个字的省略」——
+     所以只能靠脚本抓。 */
+  ['没有 U+FFFD 替换符', !b.includes('\uFFFD'), (b.match(/\uFFFD/g) || []).length + ' 个'],
   ['正文长度', b.replace(/\s/g, '').length > 3000],
   ['有小节标题', (b.match(/^## /gm) || []).length >= 8],
   ['有配图', (b.match(/^!\[/gm) || []).length >= 1],
