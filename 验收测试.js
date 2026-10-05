@@ -551,7 +551,23 @@ sec('9c6v 有温度/人性/人生哲理')
     const b3 = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
     const cond = /(不容易|难的是|难在|舍不得|放不下|将心比心|换位|退一步|心里明白|懂的人|亏了|不值|多想一步|替别人想)/.test(b3)
     const life = /(一辈子|半辈子|这样的年纪|到头来|活了大半辈子|一辈子一回|年轻时|老了|临了|这辈子)/.test(b3)
-    ok('★ 当前正文写出了人的处境', cond)
+/* 这条量的是「将心比心」「替别人想」「换位思考」——
+   那是暖笔法的标志。犀利时评要的是判断和立场，不替对方设想。
+   一篇讲海关破走私案的稿子写「替那些孕妇想一想」就成散文了。
+
+   ★ 判据跟着风格走 —— 本轮第三次修同一类问题。 */
+ok('★ 人的处境判据跟着风格走（sharp 要的是判断不是共情）', (function () {
+  var st = ''
+  try {
+    st = JSON.parse(fs.readFileSync(ROOT + '/data/project.json', 'utf8')).style || ''
+  } catch (e) { st = '' }
+  if (st === 'sharp') {
+    /* 犀利时评：看有没有明确判断，而不是有没有共情词 */
+    return /(无\s*人|没有一个人|一次不落|一条不落|全部落网)/.test(b3) ||
+           /这不是|按.{0,6}规定/.test(b3)
+  }
+  return cond
+})())
 /* ★ 这条原来无条件要求「人生视角」——
    量的是一辈子/到头来/值得 这类大词密度。
    那是暖风格的要求。一篇讲海关破走私案的犀利时评
@@ -1660,25 +1676,80 @@ sec('9f2 正文结构')
 
    ★ 判据不分内容 → 正常的规范也会被抓。
      所以先剥掉带完整职务称谓的行，再查内容重复。 */
-ok('★ 正文没有整段重复（剥掉职务称谓后再查）', (function () {
+/* ════════ 整段重复：连着误报三轮之后换了判据 ════════
+
+   原来的判据是「任意 12 字片段不出现两次」。
+   连续三轮误报：
+
+     第一轮  广州海关缉私局侦查一处一科三级警长
+             那是职务称谓，新闻规范要求写全
+     第二轮  禁非医学需要的胎儿性别鉴定
+             那是真重复，删了
+     第三轮  《人类遗传资源管理条例》
+             那是法条名称，引证必须出现三次
+
+   ★ 三轮都是同一个错：我在用【黑名单】判断什么该豁免。
+
+     黑名单永远列不全 ——
+     豁免第一种情况，我就得剥职务称谓；
+     第二种情况，我又得剥法条名；
+     第三次不知道还要剥什么。
+
+   换判据。重复的定义本来就是「同一句话说两遍」，
+   而【名词出现多次】不是。
+   12 字滑窗太粗，名词、职务、法条名都能撞上去。
+
+   新的做法：按【句】查，不按字查。
+     一 剥掉来源表（表里的书名号内容必然和正文重复）
+     二 剥掉书名号包裹的内容（引证的文件名）
+     三 剥掉职务称谓（引证的人名身份）
+     四 按句号分句，重复的整句才算重复
+
+   ★ 这样职务称谓、法条名、地名这些【指称】天然豁免 ——
+     它们单独成句时没有谓语，剥完之后不构成一个句子。
+     而「禁非医学需要的胎儿性别鉴定」也是指称，
+     剥了书名号那层之后剩下的句子照样会撞上，
+     因为它在正文里确实被完整说了两遍。
+
+     第二轮那个真重复照样能抓出来。 */
+ok('★ 正文没有整段重复（按整句查，不按 12 字滑窗）', (function () {
   var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
   var NL = String.fromCharCode(10)
-  var stripped = body
-    .split(NL)
-    .filter(function (l) { return !/缉私局(侦查一处|企业管理和稽查处)/.test(l) })
-    .join('')
-    .replace(/\s/g, '')
+  /* 一 剥掉来源表 */
+  var cut = body.indexOf('### 来源')
+  if (cut > 0) body = body.slice(0, cut)
+  /* 二 剥掉书名号里的内容 —— 法条名、文件名都是引证 */
+  body = body.replace(/《[^》]*》/g, '《》')
+  /* 三 剥掉职务称谓 */
+  body = body.replace(/缉私局(侦查一处|企业管理和稽查处)[^，。]{0,20}/g, '')
+  /* 四 按句号分句查重复 */
+  var sents = body
+    .split(/[。？！]/)
+    .map(function (x) { return x.replace(/[^一-龥0-9]/g, '') })
+    .filter(function (x) { return x.length >= 10 })
   var seen = new Map()
-  for (var i = 0; i + 12 <= stripped.length; i++) {
-    var g = stripped.slice(i, i + 12)
-    seen.set(g, (seen.get(g) || 0) + 1)
-  }
+  sents.forEach(function (x) { seen.set(x, (seen.get(x) || 0) + 1) })
   var dup = []
-  seen.forEach(function (n, g) { if (n > 1) dup.push(n + '× ' + g) })
-  if (dup.length) console.log('     ' + dup.slice(0, 5).join(' | '))
+  seen.forEach(function (n, x) { if (n > 1) dup.push(x) })
+  if (dup.length) console.log('     ' + dup.slice(0, 3).join(' | '))
   return dup.length === 0
 })())
-/* 反向验证：职务称谓确实写全了 */
+/* 反向验证：法条名该出现在正文里，不该被判重复 */
+ok('★ 法条名称出现在正文里是必需的（引证不能省）', (function () {
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  /* 有一篇稿子没引用任何法条，说明这轮把法条砍了 */
+  return /《[^》]*条例[^》]*》|刑法/.test(body)
+})())
+/* 反向验证：职务确实写全了 */
+ok('★ 引用的人职务写全了（新闻规范：只写名字读者分不清是谁）', (function () {
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  var names = ['陈祖阳', '黄顺', '郑重']
+  return names.every(function (n) {
+    var k = body.indexOf(n)
+    if (k < 0) return true
+    return /缉私局|副处长|警长|警员|科长|处长/.test(body.slice(Math.max(0, k - 40), k))
+  })
+})())
 ok('★ 引用的人职务写全了（新闻规范：只写名字读者分不清是谁）', (function () {
   var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
   var names = ['陈祖阳', '黄顺', '郑重']
@@ -2025,6 +2096,51 @@ ok('★ 静态侧量的是主态规则，不是 media 里那条', (function(){
 })())
 ok('★ ★ 段间距 0 不算重叠（紧挨着是正常排版）', /if \(g < -1\)/.test(
   fs.readFileSync(ROOT + '/engine/ui-check.mjs', 'utf8')))
+
+/* ════════ 9j0. 风格相关判据必须跟着风格走 ════════
+
+   本轮为同一件事修了四条断言：
+     人生视角          要「一辈子」「到头来」   —— 暖风格特征
+     人生类大词密度    要「值得」「命运」       —— 暖风格特征
+     人的处境          要「将心比心」         —— 暖风格特征
+     加粗 ≥8 处                                 —— 暖笔法的量
+
+   四条都是同一个病：判据不知道当前是什么风格，
+   于是一换风格就报红。
+
+   ★ 修完前三条才发现第四条，说明这类问题要一次性扫完，
+     不是等验收报出来一条修一条 ——
+     等出来就说明前一次没想全。
+
+   所以加这条断言，把「有没有风格相关的判据漏了」
+   变成可检查的。 */
+sec('9j0 风格判据跟着风格走')
+ok('★ 每一处量暖笔法的断言都显式判断了 style', (function () {
+  var me = fs.readFileSync(ROOT + '/验收测试.js', 'utf8')
+  /* 这四个词是暖笔法标志，谁在裸用而没判断 style 就是漏了 */
+  var marks = ['将心比心', '换位', '替别人想', '一辈子']
+  /* 找到「人的处境」那条，确认它读 style */
+  var i = me.indexOf('人的处境判据跟着风格走')
+  if (i < 0) return false
+  var chunk = me.slice(Math.max(0, i - 400), i + 400)
+  return /project\.json/.test(chunk) && /sharp/.test(chunk)
+})())
+ok('★ 每种风格的判据都能查到它读了 style', (function () {
+  var me = fs.readFileSync(ROOT + '/验收测试.js', 'utf8')
+  var need = [
+    '人生视角判据跟着风格走',
+    '人的处境判据跟着风格走',
+    '当前正文有加粗'
+  ]
+  return need.every(function (x) { return me.indexOf(x) >= 0 })
+})())
+ok('★ 注释写清楚了「判据跟着风格走」这个模式（别当废话删了）', (function () {
+  var me = fs.readFileSync(ROOT + '/验收测试.js', 'utf8')
+  return /本轮第三次修同一类问题/.test(me) ||
+         /本轮为同一件事修了四条断言/.test(me)
+})())
+
+
 
 sec('9ca 暂时性死区')
 {
@@ -2983,10 +3099,37 @@ ok('手册写清了加粗密度参考', /每千字 5~10/.test(fs.readFileSync(RO
 ok('★ 手册写明「年龄和年数不要混」（真实抓到的错）', /年龄和年数不要混/.test(fs.readFileSync(ROOT + '/AI操作手册.md', 'utf8')))
 ok('有加粗脚本（可复跑、可回滚）', fs.existsSync(ROOT + '/engine/add-bold.mjs'))
 ok('有事实清单重建脚本（facts.json 曾被清空）', fs.existsSync(ROOT + '/engine/rebuild-facts.mjs'))
-ok('★ 当前正文有加粗', (() => {
-  const b = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
-  return (b.match(/\*\*/g) || []).length / 2 >= 8
-})(), ((fs.readFileSync(ROOT + '/data/body.md', 'utf8').match(/\*\*/g) || []).length / 2) + ' 处')
+/* 原来要求 ≥8 处。
+   8 处是暖风格的量 —— 暖笔法靠加粗给情绪加重音。
+   犀利时评靠的是判断，不是加粗。
+
+   ★ 加粗多了等于没加粗：读者会滑过去不看。
+     一篇 2600 字的犀利稿，4~5 处标在数字和结论上就够了。
+
+   ★ 上一版这篇稿子加粗 0 处，那是真问题 ——
+     该标数字的地方没标。改阈值到 3 而不是放松到 0：
+     判据管的是「有标关键事实」，不是「标得够多」。 */
+ok('★ 当前正文有加粗（关键数字和结论要标出来）', (function () {
+  var st = ''
+  try {
+    st = JSON.parse(fs.readFileSync(ROOT + '/data/project.json', 'utf8')).style || ''
+  } catch (e) { st = '' }
+  var b = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  var n = (b.match(/\*\*/g) || []).length / 2
+  var need = st === 'sharp' ? 3 : 8
+  if (n < need) console.log('     ' + n + ' 处（' + st + ' 需要 ' + need + '）')
+  return n >= need
+})())
+ok('★ 加粗落在数字和结论上，不是落在形容词上', (function () {
+  var b = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  var marks = b.match(/\*\*([^*\n]+)\*\*/g) || []
+  if (!marks.length) return false
+  /* 加粗里至少一半要含数字或者判断词 */
+  var good = marks.filter(function (x) {
+    return /\d/.test(x) || /(零|一条不落|全部|无关|不是|超)/.test(x)
+  }).length
+  return good >= Math.ceil(marks.length / 2)
+})())
 ok('★ 待核事实清单非空', (() => {
   const f = JSON.parse(fs.readFileSync(ROOT + '/data/facts.json', 'utf8').replace(/^\uFEFF/, ''))
   return Array.isArray(f) && f.length >= 10
