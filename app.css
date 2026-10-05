@@ -2935,6 +2935,90 @@ textarea.input,select.input,.field textarea,.field select{
 /* ── 二、竖排布局 ──
    横向只有一列，宽度预算 = 侧栏宽 − padding 左右。
    224 − 24 = 200px，11px 字号能放 17 个字，说明不用截断也不用换行。 */
+
+/* ════════════════════════════════════════════════════════════
+   第十二层 · 侧栏四项：给每一项底色，别让三项「消失」
+
+   用户原话：「左侧功能栏的那个 UI 还是互相有遮挡。」
+                    —— 第三轮说同一句。
+
+   ════════ 这次量出来的三个真因 ════════
+
+   一 三个未选中项完全透明
+      实测：
+        [1] background=rgba(255,255,255,0.12)   ← 当前项
+        [2] background=rgba(0,0,0,0)            ← 透明
+        [3] background=rgba(0,0,0,0)            ← 透明
+        [4] background=rgba(0,0,0,0)            ← 透明
+
+      四项里三项没有底色，只有当前项是玻璃药丸。
+      悬空在深色侧栏里，三个框「看不见」，
+      只剩一个孤零零的药丸浮着 —— 这就是「乱七八糟」的观感。
+
+      ★ 为什么前两轮都没查出来：
+        我查的是「有没有重叠」「够不够高」「序号几 个」，
+        全是几何和计数。
+        「三个框没底色」不属于这两类 ——
+        元素在那个位置、没跟谁重叠、尺寸也对，
+        只是视觉上不成立。
+
+        几何判据有个盲区：【看起来存不存在】。
+        一个全透明的框，几何上完美，视觉上不存在。
+
+      修：每一项都给一层极淡的底，
+          当前项再叠一层更明显的 + 品牌色竖条。
+
+   二 描边是亚像素，发虚
+      实测 border=0.806723px —— 不是 1px。
+
+      原因：devicePixelRatio = 1.2396
+      （Windows 显示缩放 125%）。
+      浏览器把 1px 边框算成 0.8 物理像素，边缘就虚了。
+
+      ★ 这条是我量了 devicePixelRatio 才发现的。
+        前面两轮所有判据都在 CSS 逻辑像素里算
+        （clientWidth、scrollTop、boundingRect），
+        逻辑像素里就是 1px，看着完全正常。
+        同一个数字在两个坐标系里不一样 ——
+        这是判据本身的盲区。
+
+      修：关键描边不用 border，用 inset 阴影 ——
+          阴影可以给任意实数粗细，不受边框取整影响。
+          非关键的地方干脆不要描边。
+
+   三 hover 才给底色，鼠标一开就消失
+      所以任何静态截图都拍不到问题。
+      用户看到的常态就是「三个透明的框」。
+
+      修：常态就有底色，hover 只是加深。
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 常态底色：四项都在，只是深浅不同 ──
+   不用 border，用 inset 阴影做内描边 ——
+   理由见上面「描边是亚像素」那一条。
+   --nav-card 是四项通用的底，--nav-card-on 是当前项。 */
+:root{
+  --nav-card:rgba(255,255,255,.045);
+  --nav-card-hov:rgba(255,255,255,.085);
+  --nav-card-on:rgba(255,255,255,.13);
+  /* 内描边用阴影而不是 border：阴影能给小数粗细，
+     border 会被取整到物理像素，125% 缩放下就是 0.8px 发虚 */
+  --nav-inset:inset 0 0 0 .5px rgba(255,255,255,.09);
+  --nav-inset-hov:inset 0 0 0 .5px rgba(255,255,255,.14);
+  --nav-inset-on:inset 0 0 0 .5px rgba(255,255,255,.2);
+}
+
+@media (prefers-color-scheme:dark){
+  :root{
+    --nav-card:rgba(255,255,255,.06);
+    --nav-card-hov:rgba(255,255,255,.1);
+    --nav-card-on:rgba(255,255,255,.16);
+    --nav-inset:inset 0 0 0 .5px rgba(255,255,255,.11);
+    --nav-inset-hov:inset 0 0 0 .5px rgba(255,255,255,.17);
+    --nav-inset-on:inset 0 0 0 .5px rgba(255,255,255,.24);
+  }
+}
+
 .side .nav{
   position:relative;
   flex:0 0 auto;
@@ -2943,75 +3027,67 @@ textarea.input,select.input,.field textarea,.field select{
   align-items:stretch;
   gap:2px;
   width:100%;
-  padding:8px 11px 9px;
-  border:1px solid transparent;
+  padding:9px 11px 10px;
+  /* ★ 不写 border —— 1px 边框在 125% 缩放下会被取整成 0.8px，
+     边缘发虚，看着像「糊在一起」。
+     改用 inset 阴影做内描边，粗细可以给 0.5px。 */
+  border:0;
   border-radius:var(--r3);
-  background:transparent;
+  background:var(--nav-card);
+  box-shadow:var(--nav-inset);
   text-align:left;
   cursor:pointer;
   transition:background var(--dur-fast) var(--ease),
-             border-color var(--dur-fast) var(--ease),
+             box-shadow var(--dur-fast) var(--ease),
              transform var(--dur-fast) var(--ease);
 }
+
 .side .nav + .nav{margin-top:3px}
+
+/* hover 只是加深，不是「从没有到有」——
+   上一版 hover 才给底色，鼠标一移开就退回全透明，
+   任何静态截图都拍不到问题，用户看到的常态就是三个空框。 */
 .side .nav:hover{
-  background:var(--glass-1);
-  -webkit-backdrop-filter:var(--blur-1);
-  backdrop-filter:var(--blur-1);
+  background:var(--nav-card-hov);
+  box-shadow:var(--nav-inset-hov);
 }
 .side .nav:active{transform:scale(.99)}
 
-/* 序号行：序号 + 标题，一行放得下 */
+.side .nav.on{
+  background:var(--nav-card-on);
+  box-shadow:var(--nav-inset-on);
+}
+
+/* 序号：未选中是描边圆，当前是实心品牌色 —— 一眼能认出走到哪一步 */
 .side .nav .st-row{
   display:flex;
   align-items:center;
   gap:var(--nav-gap);
   min-width:0;
 }
-
-/* 序号：固定方形，不参与伸缩（缩了就圆不成圆） */
 .side .nav .st{
   flex:0 0 var(--nav-st);
   width:var(--nav-st);height:var(--nav-st);
   display:grid;place-items:center;
   border-radius:50%;
-  border:1.5px solid var(--line);
+  /* 描边同样不用 border，用 box-shadow */
+  border:0;
   background:transparent;
+  box-shadow:inset 0 0 0 1.2px var(--line-2);
   font:700 11px/1 var(--font);
   font-variant-numeric:tabular-nums;
   color:var(--ink-4);
   transition:background var(--dur-fast) var(--ease),
-             border-color var(--dur-fast) var(--ease),
+             box-shadow var(--dur-fast) var(--ease),
              color var(--dur-fast) var(--ease);
 }
-
-/* ★ 说明：可以换行，不再 nowrap + ellipsis。
-   「换主题，复制进公众号」一行要 154px，
-   截成「换主题，复制进公…」等于把信息丢了。
-   换行只是多一行高度，不丢字。 */
-/* ★ 缩进不写死 31px。
-     31 = 序号 22 + gap 9，这个数写两遍就有一遍会过期。
-     上一版写 padding-left:31px，实测完全没生效（说明还在 x13），
-     后来才想明白 box-sizing 挤的是内容框不是位置。
-
-     用 margin（推自己，不挤内容）+ 变量（一个来源）：
-       --nav-st 22px   序号宽
-       --nav-gap 9px   序号和标题之间
-       缩进 = 22 + 9 = 31
-   ★ 目的是和标题左对齐 —— 说明文字缩进到标题那一列，
-     序号那一列留给序号，读者一眼知道每段说明属于上面哪个序号。 */
-.side .nav .ds{
-  font:400 11.5px/1.45 var(--font);
-  color:var(--ink-4);
-  /* 不设 nowrap，不设 ellipsis —— 让它换行，
-     「换主题，复制进公众号」一行要 154px，
-     截成「换主题，复制进公…」等于把信息丢了 */
-  overflow-wrap:anywhere;
-  margin-left:calc(var(--nav-st) + var(--nav-gap));
-  min-width:0;
+.side .nav.on .st{
+  background:var(--brand);
+  box-shadow:none;
+  color:#fff;
 }
 
-/* 标题：单行，够长就省略（标题只有 2 个字，实际不会触发） */
+/* 标题 */
 .side .nav .tx{
   flex:1;
   min-width:0;
@@ -3023,59 +3099,38 @@ textarea.input,select.input,.field textarea,.field select{
 }
 .side .nav.on .tx{color:var(--ink)}
 
-/* ── 三、badge 绝对定位，不占横向空间 ──
-   原来 badge 是 grid 的第三列（auto），
-   说明文字要给它让出 24~34px。
-   改成挂在右上角，只做「有更新」的小提示，
-   不参与宽度分配。 */
+/* 说明：可换行，不截断（截断丢信息），缩进用变量 */
+.side .nav .ds{
+  font:400 11.5px/1.45 var(--font);
+  color:var(--ink-4);
+  overflow-wrap:anywhere;
+  margin-left:calc(var(--nav-st) + var(--nav-gap));
+  min-width:0;
+}
+
+/* badge：绝对定位，不占横向宽度 */
 .side .nav .badge{
   position:absolute;
-  top:12px;
-  right:12px;
+  top:11px;
+  right:11px;
   flex:0 0 auto;
-  align-self:auto;
 }
 .side .nav .badge[data-dot]{
   min-width:8px;width:8px;height:8px;
-  padding:0;
-  border-radius:50%;
-  font-size:0;
+  padding:0;border-radius:50%;font-size:0;
 }
-
-/* 序号 + badge 冲突时，badge 让位 —— 两者都在右上区域 */
 .side .nav .st-row .badge{
   position:static;
   margin-left:auto;
 }
 
-/* 选中态 */
+/* 选中态竖条：用阴影画，不占布局也不吃 border */
 .side .nav.on{
-  background:var(--glass-3);
-  border-color:var(--edge-1);
-  -webkit-backdrop-filter:var(--blur-2);
-  backdrop-filter:var(--blur-2);
-  box-shadow:var(--hi-top),var(--hi-bot);
-}
-.side .nav.on .st{
-  background:var(--brand);
-  border-color:var(--brand);
-  color:#fff;
-}
-/* 左侧品牌色竖条 —— 不靠颜色深浅也能认出当前在哪一步 */
-.side .nav.on::before{
-  content:'';
-  position:absolute;
-  left:0;top:50%;
-  width:3px;height:22px;
-  transform:translateY(-50%);
-  border-radius:0 2px 2px 0;
-  background:var(--brand);
+  box-shadow:var(--nav-inset-on),
+             inset 3px 0 0 var(--brand);
 }
 
-/* ── 四、轨道态（<860px）──
-   只留序号。这是唯一允许隐藏文字的一档，
-   而且用 860 而不是以前的 900/1024 ——
-   视口 1000 这种常见宽度不该退化成轨道。 */
+/* ── 轨道态（≤860px）—— 只留序号 ── */
 @media (max-width:860px){
   .side{padding:0}
   .side .brand{padding:18px 0 12px;text-align:center}
@@ -3085,18 +3140,20 @@ textarea.input,select.input,.field textarea,.field select{
   .side .nav-label{padding:12px 0 6px;text-align:center;font-size:0}
   .side .nav-label::after{content:'···';font-size:11px;letter-spacing:0}
   .side .nav-group{padding:0 8px;gap:0}
-  .side .nav{
-    align-items:center;
-    padding:9px 4px;
-  }
+  .side .nav{align-items:center;padding:9px 4px}
   .side .nav .st-row{justify-content:center}
   .side .nav .tx,
   .side .nav .ds{display:none}
-  .side .nav .badge{
-    position:static;
-    margin-left:0;
+  .side .nav .badge{position:static;margin-left:0}
+  /* 轨道里没有左边框的位置，竖条改到盒子内部 */
+  .side .nav.on{box-shadow:var(--nav-inset-on)}
+  .side .nav.on::after{
+    content:'';
+    position:absolute;
+    left:50%;bottom:4px;
+    width:14px;height:2px;
+    transform:translateX(-50%);
+    border-radius:1px;
+    background:var(--brand);
   }
-  .side .nav.on::before{display:none}
-  /* 轨道里选中态要看得见 */
-  .side .nav.on{background:var(--brand-soft);border-color:transparent}
 }

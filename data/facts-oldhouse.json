@@ -1,0 +1,143 @@
+[
+  {
+    "id": "fc_lf_01",
+    "kind": "org",
+    "label": "研究机构",
+    "value": "云南省昆明市大摆衣村",
+    "ctx": "云南那边做田野调查，老人说只要维护得当土房子用上100年没有问题",
+    "verdict": "ok",
+    "url": "https://www.chinanews.com.cn/m/sh/2025/05-02/10409533.shtml",
+    "note": "抹面每隔几年翻新一次，小青瓦坏了要马上补"
+  },
+  {
+    "id": "fc_lf_02",
+    "kind": "num",
+    "label": "抹面修复周期",
+    "value": "每隔十年整体修复一次",
+    "ctx": "四川阿坝州阿坝县藏族夯土民居，屋顶晒台黄泥铺面每年修一次",
+    "verdict": "ok",
+    "url": "https://www.chinanews.com.cn/m/sh/2025/05-02/10409533.shtml"
+  },
+  {
+    "id": "fc_lf_03",
+    "kind": "num",
+    "label": "房屋寿命",
+    "value": "100年",
+    "ctx": "云南大摆衣村土坯房与夯土房，只要维护得当",
+    "verdict": "ok",
+    "url": "https://www.chinanews.com.cn/m/sh/2025/05-02/10409533.shtml"
+  },
+  {
+    "id": "fc_lf_04",
+    "kind": "org",
+    "label": "研究机构",
+    "value": "四川省阿坝州阿坝县",
+    "ctx": "藏族夯土民居，十年一次的抹面由乡里乡亲一起做",
+    "verdict": "ok",
+    "url": "https://www.chinanews.com.cn/m/sh/2025/05-02/10409533.shtml"
+  },
+  {
+    "id": "fc_lf_05",
+    "kind": "name",
+    "label": "入侵植物",
+    "value": "日本虎杖",
+    "ctx": "19世纪引进欧洲，根系可穿透柏油混凝土空心砖",
+    "verdict": "ok",
+    "url": "https://www.chinanews.com.cn/m/sh/2025/05-02/10409533.shtml",
+    "note": "英国环境署列为入侵物种，别称房屋杀手"
+  },
+  {
+    "id": "fc_lf_06",
+    "kind": "org",
+    "label": "监管机构",
+    "value": "英国环境署",
+    "ctx": "将日本虎杖列入入侵物种名单",
+    "verdict": "ok",
+    "url": "https://www.chinanews.com.cn/m/sh/2025/05-02/10409533.shtml"
+  },
+  {
+    "id": "fc_lf_07",
+    "kind": "num",
+    "label": "冻融循环次数",
+    "value": "75次",
+    "ctx": "古青砖冻融试验，75次后微观孔隙结构损伤明显激增",
+    "verdict": "ok",
+    "url": "http://www.wwbhkgkx.net/wwbh/article/abstract/20210402",
+    "note": "试验设0/15/30/45/60/75次，孔洞率与质量损失率随次数增大"
+  },
+  {
+    "id": "fc_lf_08",
+    "kind": "org",
+    "label": "期刊",
+    "value": "西部保昌论坛",
+    "ctx": "冻融作用对古青砖宏观性能及微观结构劣化的影响",
+    "verdict": "ok",
+    "url": "http://www.wwbhkgkx.net/wwbh/article/abstract/20210402"
+  },
+  {
+    "id": "fc_lf_09",
+    "kind": "num",
+    "label": "加固后强度提升",
+    "value": "四分之一",
+    "ctx": "北方某老旧多层砌体住宅修缮工程，抗压强度提升25%以上",
+    "verdict": "ok",
+    "url": "https://www.qikanchina.com/thesis/view/9842368",
+    "note": "工程实践观测期一年，加固后无返碱粉化开裂新生病害"
+  },
+  {
+    "id": "fc_lf_10",
+    "kind": "num",
+    "label": "观测期",
+    "value": "为期一年",
+    "ctx": "北方某老旧多层砌体住宅修缮工程环境跟踪观测",
+    "verdict": "ok",
+    "url": "https://www.qikanchina.com/thesis/view/9842368"
+  },
+  {
+    "id": "fc_lf_11",
+    "kind": "org",
+    "label": "研究机构",
+    "value": "期刊网",
+    "ctx": "温湿度耦合作用下民用建筑砌体结构耐久性退化机理及加固研究",
+    "verdict": "ok",
+    "url": "https://www.qikanchina.com/thesis/view/9842368",
+    "note": "作者霍娜，2026-07-08"
+  },
+  {
+    "id": "fc_lf_12",
+    "kind": "num",
+    "label": "墙体病害分类",
+    "value": "三类",
+    "ctx": "墙面起皮返碱、灰缝砂浆脱落、结构性裂缝",
+    "verdict": "ok",
+    "url": "https://www.qikanchina.com/thesis/view/9842368"
+  },
+  {
+    "id": "fc_lf_13",
+    "kind": "num",
+    "label": "记者回乡年份",
+    "value": "前年冬天",
+    "ctx": "回空置老屋发现吊柜摇摇欲坠台面裂开大口子",
+    "verdict": "ok",
+    "url": "https://www.chinanews.com.cn/m/sh/2025/05-02/10409533.shtml",
+    "note": "原文表述为前几年，原作者万丽，编辑朱绚绚"
+  },
+  {
+    "id": "fc_lf_14",
+    "kind": "name",
+    "label": "案例人物",
+    "value": "记者的母亲",
+    "ctx": "父母搬离后回老屋办事发现厨房吊柜摇摇欲坠",
+    "verdict": "ok",
+    "url": "https://www.chinanews.com.cn/m/sh/2025/05-02/10409533.shtml"
+  },
+  {
+    "id": "fc_lf_15",
+    "kind": "date",
+    "label": "报道日期",
+    "value": "2025-05-02",
+    "ctx": "中国新闻网刊出日期",
+    "verdict": "ok",
+    "url": "https://www.chinanews.com.cn/m/sh/2025/05-02/10409533.shtml"
+  }
+]

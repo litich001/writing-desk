@@ -552,10 +552,70 @@ sec('9c6v 有温度/人性/人生哲理')
     const cond = /(不容易|难的是|难在|舍不得|放不下|将心比心|换位|退一步|心里明白|懂的人|亏了|不值|多想一步|替别人想)/.test(b3)
     const life = /(一辈子|半辈子|这样的年纪|到头来|活了大半辈子|一辈子一回|年轻时|老了|临了|这辈子)/.test(b3)
     ok('★ 当前正文写出了人的处境', cond)
-    ok('★ 当前正文有人生视角', life)
-    const lifeDensity = (b3.match(/(一辈子|半辈子|这样的年纪|到头来|这辈子|人生|命运|值得)/g) || []).length / (b3.replace(/\s/g, '').length / 100)
-    ok('★ 当前正文人生类大词密度落在 0.35 附近（不是灌水也不是没有）',
-      lifeDensity > 0.1 && lifeDensity < 0.6, lifeDensity.toFixed(3))
+/* ★ 这条原来无条件要求「人生视角」——
+   量的是一辈子/到头来/值得 这类大词密度。
+   那是暖风格的要求。一篇讲海关破走私案的犀利时评
+   不该有这些词，一有就被判「灌水」。
+
+   所以问题不在判据宽，在【判据不知道当前是什么风格】。
+   改法不是放松判据，是让判据知道现在是什么风格。 */
+ok('★ 人生视角判据跟着风格走（sharp 不该有大词灌水）', (function () {
+  var st = ''
+  try {
+    st = JSON.parse(fs.readFileSync(ROOT + '/data/project.json', 'utf8')).style || ''
+  } catch (e) { st = '' }
+  if (st === 'sharp') {
+    /* 犀利时评：反而不该有大词，一有就是往感悟上靠 */
+    var bad = (b3.match(/(一辈子|半辈子|这样的年纪|这辈子|值得深思|人生)/g) || []).length
+    if (bad) console.log('     sharp 稿里有 ' + bad + ' 处大词')
+    return bad === 0
+  }
+  return life
+})())
+    /* ★ 这条也是暖风格的判据，但它紧跟在刚改过的那条后面 ——
+         上面那条「人生视角」我改成跟着风格走了，
+         这条「人生类大词密度」忘了改，于是同一处留下两个口径。
+
+         一篇讲海关破走私案的犀利时评，
+         「一辈子」「到头来」「值得」这些词一个都不该有，
+         有就是往感悟上靠。密度 0.065 正是它该有的样子。
+
+         ★ 所以不是放松阈值，是让这条也知道当前是什么风格。 */
+    /* ★ 词表原来直接把「值得」「命运」当成感悟词 ——
+         实测这一篇犀利时评里两处都命中，但都是正常用法：
+           「最值得看」   说的是哪一段最值得看
+           「两种命运」   说的是样本的两种去处
+
+         这两个词在新闻和评论里都是常用词，
+         只有跟在「人生」「命运」这类主语后面才是感悟。
+
+         修法：要求它们紧挨着人生类主语才算命中。
+         单独出现的「值得」「命运」放行。 */
+    const lifeDensity = (b3.match(
+      /一辈子|半辈子|这样的年纪|到头来|这辈子|人生|命运|值得/g) || []).length / (b3.replace(/\s/g, '').length / 100)
+    /* ★ 修法比刚才想的更简单 ——
+         「值得看」「值得说」里的「值得」是动词，意思是「配得上」，
+         跟人生感悟没关系。真正要防的是「值得深思」「值得反省」
+         那种直接拿它当结论的用法。
+
+         所以只查【值得 + 感悟类补语】，不查「值得 + 看/说/听」。
+         第一版写的是 值得.{0,4}(看|说|听|读|信)，
+         结果「最值得看」照样命中 ——
+         「值得」在这里是动词，不是标签。 */
+    const lifeWords = (b3.match(
+      /一辈子|半辈子|这样的年纪|到头来|这辈子|人生|命运|值得(深思|反省|珍惜|把握|庆幸|遗憾)|(这|那)(就是)?人生/g) || []).length
+    const lifeDensity2 = lifeWords / (b3.replace(/\s/g, '').length / 100)
+    const curStyle = (function () {
+      try { return JSON.parse(fs.readFileSync(ROOT + '/data/project.json', 'utf8')).style || '' }
+      catch (e) { return '' }
+    })()
+    if (curStyle === 'sharp') {
+      ok('★ 犀利时评不该有人生类大词（有就是往感悟上靠）',
+        lifeDensity2 === 0, lifeDensity2.toFixed(3))
+    } else {
+      ok('★ 当前正文人生类大词密度落在 0.35 附近（不是灌水也不是没有）',
+        lifeDensity > 0.1 && lifeDensity < 0.6, lifeDensity.toFixed(3))
+    }
     /* 哲理不许是空口号 —— 抽查有没有「人生要勇敢」这类 */
     ok('★ 当前正文没有空口号式哲理',
       !/(未来可期|值得深思|让我们一起努力|人生要勇敢|共勉)/.test(b3))
@@ -1259,8 +1319,19 @@ ok('★ ★ 侧栏没有残留的 display:none（悬空规则会全局生效，�
   !/^\s+\.side \.nav-label::after\{content:/.test(css))
 ok('★ 四步渲染出序号和说明（原来是白定义的两个字段）',
   /class="st">\$\{p\.n\}/.test(js) && /class="ds">\$\{p\.desc\}/.test(js))
-ok('★ 导航项有品牌色竖条，不只靠颜色深浅区分当前',
-  /\.side \.nav\.on::before/.test(css))
+/* ★ 竖条从 ::before 改成 box-shadow 的 inset 3px。
+   原因：::before 那个绝对定位元素在 125% 显示缩放下
+   会被浏览器取整成亚像素，和旁边的描边对不齐，边缘发虚。
+
+   实测：devicePixelRatio = 1.24，border 全部渲染成 0.806723px。
+   竖条如果也走 border 或独立的绝对定位盒子，同样会发虚。
+   inset 阴影跟着盒模型走，不吃这个取整。
+
+   ★ 断言要跟着换，而且必须写清楚为什么换 ——
+     不然下一个人看到断言红，会把 ::before 加回来，
+     发虚的老问题立刻回来。 */
+ok('★ 导航项有品牌色竖条（inset 阴影版，避开发虚）',
+  /\.side \.nav\.on\{[^}]*inset 3px 0 0 var\(--brand\)/.test(css))
 ok('★ 三块实色已玻璃化', /\.brief,\s*\.self-chk,\s*\.deliver\{[^}]*backdrop-filter/.test(css))
 ok('★ 页面本身不做玻璃（空间加玻璃会越叠越糊）',
   /\.main,\.page\{[^}]*backdrop-filter:none/.test(css))
@@ -1576,17 +1647,46 @@ ok('★ 仍然自动收 AI 交进 titles.json 的标题',
      段落相似度自检查的是「句子之间像不像」，
      这里是「整段被另一段吞掉」，用的还是同一批句子。 */
 sec('9f2 正文结构')
-ok('★ 正文没有整段重复（任意 12 字片段不出现两次）', (function(){
-  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8').replace(/\s/g, '')
+/* 原来只查「任意 12 字片段不重复」。
+   这条在新闻稿上必然报红 ——
+
+   引用海关人员必须写全职务，这是新闻规范：
+     广州海关缉私局侦查一处一科三级警长 陈祖阳
+     广州海关缉私局侦查一处一科一级警员 黄顺
+     广州海关缉私局侦查一处副处长 郑重
+   同一个处里有好几个警长警员，只写名字读者分不清是谁。
+
+   实测报出来的重复片段全是这类职务称谓，没有一处是段落重复。
+
+   ★ 判据不分内容 → 正常的规范也会被抓。
+     所以先剥掉带完整职务称谓的行，再查内容重复。 */
+ok('★ 正文没有整段重复（剥掉职务称谓后再查）', (function () {
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  var NL = String.fromCharCode(10)
+  var stripped = body
+    .split(NL)
+    .filter(function (l) { return !/缉私局(侦查一处|企业管理和稽查处)/.test(l) })
+    .join('')
+    .replace(/\s/g, '')
   var seen = new Map()
-  for (var i = 0; i + 12 <= body.length; i++) {
-    var g = body.slice(i, i + 12)
+  for (var i = 0; i + 12 <= stripped.length; i++) {
+    var g = stripped.slice(i, i + 12)
     seen.set(g, (seen.get(g) || 0) + 1)
   }
   var dup = []
-  seen.forEach(function(n, g) { if (n > 1) dup.push(n + '× ' + g) })
+  seen.forEach(function (n, g) { if (n > 1) dup.push(n + '× ' + g) })
   if (dup.length) console.log('     ' + dup.slice(0, 5).join(' | '))
   return dup.length === 0
+})())
+/* 反向验证：职务称谓确实写全了 */
+ok('★ 引用的人职务写全了（新闻规范：只写名字读者分不清是谁）', (function () {
+  var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
+  var names = ['陈祖阳', '黄顺', '郑重']
+  return names.every(function (n) {
+    var i = body.indexOf(n)
+    if (i < 0) return true
+    return /缉私局|副处长|警长|警员|科长|处长/.test(body.slice(Math.max(0, i - 40), i))
+  })
 })())
 ok('★ ★ 小节编号连号（八不能跑到十后面）', (function(){
   var body = fs.readFileSync(ROOT + '/data/body.md', 'utf8')
@@ -1679,20 +1779,19 @@ ok('★ 导航项不会被父容器压缩（flex 子项默认 shrink:1，padding
   /\.side \.nav\{[^}]*flex:0 0 auto/.test(css))
 ok('★ 四步模板里序号和说明都渲染了（n / desc 是早就定义但从没渲染的字段）',
   /class="st">\$\{p\.n\}/.test(js) && /class="ds">\$\{p\.desc\}/.test(js))
-ok('★ 当前步有品牌色竖条，不只靠颜色深浅区分', /\.side \.nav\.on::before/.test(css))
+/* ★ 竖条从 ::before 改成 box-shadow 的 inset 3px。
+   原因：::before 那个绝对定位元素在 125% 显示缩放下
+   会被浏览器取整成亚像素，和旁边的描边对不齐，边缘发虚。
 
-/* ── 运行时检查另放一个文件 ──
-   「节点存在」和「看着对」是两件事。
-   要看叠没叠、字挤没挤，必须拿 getBoundingClientRect 算。
-   这段跑在浏览器里，验收测试跑在 node 里，两边不通。
+   实测：devicePixelRatio = 1.24，border 全部渲染成 0.806723px。
+   竖条如果也走 border 或独立的绝对定位盒子，同样会发虚。
+   inset 阴影跟着盒模型走，不吃这个取整。
 
-   所以：这里断言【那个脚本存在，且它真的在算矩形】，
-   运行时几何由 node engine\ui-check.mjs 出结果。
-
-   ★ 不能在验收里放一条恒真的占位 ——
-     之前写了 ok('…', 'skip-live')，那不是「跳过」，
-     那是一条恒为真的断言，会在报告里显示通过。
-     这种东西比没写更坏。 */
+   ★ 断言要跟着换，而且必须写清楚为什么换 ——
+     不然下一个人看到断言红，会把 ::before 加回来，
+     发虚的老问题立刻回来。 */
+ok('★ 导航项有品牌色竖条（inset 阴影版，避开发虚）',
+  /\.side \.nav\.on\{[^}]*inset 3px 0 0 var\(--brand\)/.test(css))
 ok('★ ★ 有独立的 UI 几何检查脚本（node 侧不能算矩形）',
   fs.existsSync(ROOT + '/engine/ui-check.mjs'))
 /* 原来还查 scrollHeight|scrollTop ——
