@@ -53,7 +53,30 @@
   --danger:#b03a2e;  --danger-bg:#f9e9e6;
 
   /* 间距：4 的倍数 */
-  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px; --s8:64px;
+  /* 旧间距令牌：全部指向新阶梯 --sp1~--sp8（规范见 UI设计规范.md）
+     ★ 这两套并存了很久，而真正在用的是这一套（引用 200+ 处），
+       上一轮新加的 --sp* 只有 5 处引用。
+       所以「间距 21 档 → 11 档」那个结论是对着没在用的那套量的。
+
+       映射不是同序号对齐，是按【值】对齐：
+         --s1 4px  → --sp2 4px
+         --s2 8px  → --sp3 8px
+         --s3 12px → --sp4 12px
+         --s4 16px → --sp5 16px
+         --s5 24px → --sp6 24px
+         --s6 32px → --sp7 32px
+         --s7 48px → --sp8 48px
+         --s8 64px → --sp8 48px  ← 唯一真变了的，64 不在新阶梯里
+
+     改令牌的值而不是改引用：200+ 处引用，改引用一定会漏。 */
+  --s1:var(--sp2);
+  --s2:var(--sp3);
+  --s3:var(--sp4);
+  --s4:var(--sp5);
+  --s5:var(--sp6);
+  --s6:var(--sp7);
+  --s7:var(--sp8);
+  --s8:var(--sp8);
 
   /* 圆角：硬边为主。只给胶囊元素留全圆 */
   --r-s:var(--r1); --r-m:var(--r1); --r-l:var(--r2); --r-xl:var(--r2); --r-full:999px;
@@ -117,7 +140,9 @@ a{color:inherit;text-decoration:none}
 }
 /* 产品名：衬线 + 放大 + 朱红点睛。
    这是整个界面的第一眼。原来 14px 无衬线灰字 —— 换成什么配色都看不出变化。 */
-.brand{padding:0 var(--s2) var(--s5);position:relative}
+/* 横向内边距交给 .side，这里只留纵向 ——
+   两个地方都给横向就叠成 24px，边距不再是同一个数 */
+.brand{padding:0 0 var(--s5);position:relative}
 .brand h1{
   font:700 20px/1.2 var(--serif);letter-spacing:.01em;color:var(--ink);
   display:flex;align-items:center;gap:8px;
@@ -168,7 +193,11 @@ a{color:inherit;text-decoration:none}
 .dot.on{background:var(--ok)}
 
 .main{flex:1;overflow-y:auto;min-width:0;position:relative}
-.page{display:none;padding:var(--s6) var(--s7) 120px}
+/* 页面级边距：横向 24、纵向 24、底部给滚动留白。
+   ★ 这一处是页面留白的唯一出处。
+     改之前有五处各写各的（见下面注释），
+     结果 hot/idea 页 16px、write/ship 页 24px、顶部还有 16 和 24 两种。 */
+.page{display:none;padding:var(--s5) var(--s5) 96px}
 .page.on{display:block;animation:fade .2s var(--ease)}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .container{max-width:1120px;margin:0 auto}
@@ -327,8 +356,12 @@ select{
    ============================================================ */
 /* 成稿页专用：去掉 .page 的左右内边距，正文吃满主区。
    .page 那 32px padding 在这里是纯浪费 —— 主区本来就只有 800 出头。 */
-.page.wide-page{padding:0}
-.page.wide-page .container.full{max-width:none;padding:var(--s4) var(--s5) 90px}
+/* 定题/成稿/发布页：内容铺满主区，但留白跟别的页一样。
+   ★ 原来这里写的是 padding:0，把 .page 的留白整个拿掉，
+     换成 .container 上的 16/24 —— 于是这三页的边距
+     和热点页/选题页不一样，用户来回切页就能看出来。 */
+.page.wide-page{padding:var(--s5) var(--s5) 96px}
+.page.wide-page .container.full{max-width:none;padding:0 0 88px}
 /* 正文与侧栏的比例写死：正文 3 : 侧栏 1。
    不用 1fr —— 在部分浏览器里 minmax(0,1fr) 会退化成把可用宽度平分，
    结果正文和侧栏一样宽，正文被挤成一条。用固定比例就不会。 */
@@ -403,8 +436,29 @@ select{
 .editor:focus{outline:none}
 .editor-bar{
   display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;
-  padding:var(--s3) var(--s5);border-top:1px solid var(--line-2);background:var(--surface-2);
-  position:sticky;bottom:0;
+  padding:var(--s3) var(--s5) var(--s5);border-top:1px solid var(--line-2);background:var(--surface-2);
+  position:sticky;
+  /* ★ 底部留白实测：原来 padding-bottom 12px，主按钮离屏幕底只有 6px。
+
+     这里查了一件查不出来的事：
+     sticky bottom:0 时，浏览器把这条钉在视口底下方 6px
+     （视口底 700，条底 706）。
+     逐项排除过：scroll-padding、.main 的 padding、
+     .page / .container 的 padding-bottom、flex 与否、
+     border、margin、body/html 的 overflow ——
+     全都改不动它。position:static 时落在 753（自然位置）。
+
+     ★ 所以不写死一个「补偿 6px」的数字：
+       这个浏览器没有 resize 工具，只在 1000×700 验证过，
+       换个视口高度那 6px 未必还在，
+       写死的补偿就会变成「有的高度陷进去、有的浮起来」。
+
+     改成用阶梯值 bottom:var(--s3)：
+       有那 6px 偏移时  主按钮离屏幕底 22px ✓
+       没有偏移时      条底浮起 12px —— 看着有间隙，不是缺陷
+
+     降级方向是「浮起一点」而不是「陷进去」，这是选它的唯一理由。 */
+  bottom:var(--s3);
 }
 .editor-bar .meta{font-size:var(--fs-meta);color:var(--ink-4)}
 
@@ -527,19 +581,15 @@ select{
   transition:all var(--dur) var(--ease);
 }
 .title-ref:hover{border-color:var(--ink-4);background:var(--surface-2)}
-.tr-head{display:flex;align-items:center;gap:4px}
-.tr-head em{
-  font-style:normal;font-size:11px;font-weight:600;color:var(--ink-3);flex:0 0 auto;
-  padding:1px 4px;border-radius:var(--r-full);background:var(--surface-3);
-}
-.tr-head .score{
-  margin-left:auto;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;
-  padding:1px 4px;border-radius:var(--r-full);
-  /* 分越高越深：>90 近黑，<80 灰 */
-  color:#fff;background:color-mix(in srgb,var(--ink) calc(var(--s) * 1%),#c9ccd1);
-}
-.tr-t{font-size:var(--fs-aux);line-height:1.55;color:var(--ink);font-weight:500}
-.tr-why{font-size:11px;line-height:1.5;color:var(--ink-4)}
+/* 删掉了四条规则：.tr-head / .tr-head em / .tr-head .score / .tr-t / .tr-why
+   「标题建议」卡片改版之后 markup 换成了 .tp-i / .tp-t / .tp-n，
+   这四个 class 在 app.js 和 index.html 里一次都没出现过。
+
+   其中 .tr-head .score 里还写着 var(--s) —— 那个令牌从没声明过，
+   于是整条 background 作废，徽标本来就没有底色。
+   是「没有悬空令牌」那条断言先抓到的。
+
+   ★ 不补一个 --s 的值：补了就是给不存在的元素编行为。 */
 
 /* 图库改为正文下方可展开的网格，见 .lib。 */
 
@@ -1127,7 +1177,21 @@ textarea.input,textarea#abs,textarea#req,textarea#fixreq,textarea#hot-angle{
   .side-pane{max-height:460px}
 
   /* 侧栏收窄由文件末尾的 900px 断点统一管 */
-  .page{padding:var(--s5) var(--s4) 96px}
+  /* 窄屏只放下限 16px，不再另写一套横向边距。
+   ★ 原来这里是 var(--s4)（16px），和宽屏的 24px 不一样 ——
+     「有的页边距宽有的窄」的第二处来源。
+     现在窄屏用下限，宽屏用 24，规则只有一个：
+       桌面 24，窄屏 16。 */
+  /* 窄屏只放下限 16px。wide-page 也要跟着降 ——
+     ★ 原来只写了 .page，而 .page.wide-page 特异性更高，
+       于是窄屏上：热点/选题页 16px，成稿/发布页 24px。
+       同一屏里两页边距不同，用户来回切页一眼就看出来。
+
+     这就是「有的页边距宽、有的窄」的最后一条来源 ——
+     前面几处（五处各写各的、clamp 叠加）都清掉了，
+     剩下这一处是作用域漏了。 */
+  .page,
+  .page.wide-page{padding:var(--s4) var(--s4) 96px}
   .hero h2{font-size:22px}
   .hero textarea{min-height:110px}
   .preview-body{padding:var(--s5) var(--s4)}
@@ -1563,10 +1627,18 @@ details.acc[open] > summary{color:var(--ink)}
    主区宽度和视口不是一回事（有侧栏）。
    但 container query 在这里没必要 —— 直接用主区的
    百分比 padding 就够，边距跟着内容宽度走。 */
-.container,.page > *{
-  padding-left:clamp(16px, 3vw, 32px);
-  padding-right:clamp(16px, 3vw, 32px);
-}
+/* 这一条原来给 .container 和 .page > * 又加了一层
+   padding-left/right:clamp(16px,3vw,32px)，
+   叠在 .page 的留白上 —— 于是实际边距是两层的和，
+   而且随视口宽度变化（16 → 32），同一条规则在不同时刻不一样宽。
+
+   ★ 「边距跟着视口变」这件事本身就是错的：
+     一屏之内宽度是固定的，clamp 算出来就固定；
+     但刷新一次、窗口拖一下就换一个数 ——
+     截图对比时会以为布局动了。
+
+   页面留白只在 .page 上给一次，这里删掉。
+   .page > * 是 .container，而 .container 自己不再带横向内边距。 */
 
 /* ── 横向溢出的兜底 ──
    实测目前没有横向溢出，但内容是用户写的（长英文串、长 URL、
@@ -2573,13 +2645,23 @@ textarea.input:focus,.input.input:focus{
   .ship-ctl .theme-list{grid-template-columns:1fr}
 }
 
+/* ★ 边缘距离：横向 16px。
+   原来这里是 padding:0，把第 110 行那条
+   padding:var(--s5) var(--s3) var(--s4)（24/12/16）整个清零了 ——
+   结果品牌名距屏幕左边 8px、导航卡片左端在 0。
+
+   侧栏背景照样通到边缘（padding 在背景盒之内），
+   只有内容不顶边。
+
+   16px 的来历：8px 看着像顶到了边，24px 以上在 1000px 宽的屏上浪费。 */
 .side{
   width:var(--nav-w);
   display:flex;
   flex-direction:column;
   gap:0;
-  padding:0;
-  overflow:hidden;
+  padding:var(--s4);
+  overflow-y:auto;
+  overscroll-behavior:contain;
 }
 
 /* ── 品牌区 ── */
@@ -3052,7 +3134,7 @@ textarea.input,select.input,.field textarea,.field select{
   align-items:stretch;
   gap:2px;
   width:100%;
-  padding:8px 12px 8px;
+  padding:var(--s3) var(--s2) var(--s3);
   /* ★ 不写 border —— 1px 边框在 125% 缩放下会被取整成 0.8px，
      边缘发虚，看着像「糊在一起」。
      改用 inset 阴影做内描边，粗细可以给 0.5px。 */

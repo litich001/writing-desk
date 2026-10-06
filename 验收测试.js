@@ -470,7 +470,34 @@ ok('有主复制按钮', /data-act="copyShip"/.test(js))
 ok('兜底方案收进折叠区', /图片丢了怎么办/.test(js))
 ok('发布页不进后台轮询重渲染（否则预览闪烁）', /if \(id === 'ship'\) continue/.test(js))
 ok('静态资源 no-store（改 CSS 立刻生效）', /no-store/.test(srvTxt))
-ok('成稿与发布两页去掉 .page 左右内边距', /wide-page/.test(js) && /\.page\.wide-page\{padding:0/.test(css))
+/* ★ 这条原来查 /\.page\.wide-page\{padding:0/，
+     也就是「成稿与发布两页去掉左右内边距，让内容铺满」。
+
+     它锁住的正是第十四轮查出来的病根：
+     wide-page 把 .page 的留白整个拿掉，
+     于是这三页横向 24px、别页 16px —— 切页就能看出来。
+
+     意图保留（内容尽量宽），做法改掉：
+     现在 wide-page 和别的页一样 24px，
+     内容铺满交给 .container.full{max-width:none}。
+
+     ★ 同一个东西两条判据打架时，要问哪条的理由更强：
+       「铺满」是排版偏好，「边距统一」是可用性 —— 后者更硬。 */
+ok('成稿与发布两页的留白和其他页一致（不再单独去掉）', (function () {
+  var body = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  /* 同样用 [^;}]+：padding 后面可能没有分号就闭合了 */
+  var a = body.match(/\.page\s*\{[^}]*padding:\s*([^;}]+)/)
+  var b = body.match(/\.page\.wide-page\s*\{[^}]*padding:\s*([^;}]+)/)
+  if (!a) { console.log('     没找到 .page 的 padding'); return false }
+  if (!b) {
+    /* 没写 wide-page 的 padding = 继承 .page 的，同样一致 */
+    return true
+  }
+  var norm = s => s.trim().replace(/\s+/g, ' ')
+  if (norm(a[1]) === norm(b[1])) return true
+  console.log('     .page = ' + norm(a[1]) + '   wide-page = ' + norm(b[1]))
+  return false
+})(), '两边都指向 var(--s5) var(--s5) 96px')
 
 /* ════════ 9c3b. 主题 CSS 作用域（真 bug：会漏到应用 UI 上）════════ */
 sec('9c3b 主题作用域')
@@ -2821,6 +2848,346 @@ ok('★ 侧栏纵向层次：块外间距 ≥ 块内间距 × 3（你问的「�
   var ng = css.match(/\.side \.nav-group\{[\s\S]*?\n\}/)
   if (!nav || !ng) return false
   return true
+})())
+
+/* ════════ 9m0b. 边缘距离：内容离屏幕边至少 16px ════════
+
+   用户原话：「左侧特别顶了边缘，有很多就是跟边缘离得特别近的，
+   重新给它调成都是一个舒服的距离，全部都重新调一下。」
+
+   实测（改之前，视口 1000×700）：
+
+     .side      padding 0/0/0/0      ← 侧栏完全没有内边距
+     .brand     padding-left 8px     ← 品牌名距屏幕左边 8px
+     .nav       left=0 宽 213px     ← 导航卡片左端在 0，顶满整栏
+     .tx/.ds    右边距栏边 13px     ← 右侧也紧
+
+   ★ 病根不是「忘了加 padding」，是有两条同名规则：
+
+     110:  .side{ … padding:var(--s5) var(--s3) var(--s4) }  24/12/16
+     2576: .side{ … padding:0 }                             ← 清零
+
+     CSS 同名选择器按最后一条生效。查的时候只找到第一条，
+     于是「明明写了 padding」和「实测 padding=0」同时成立。
+
+   主区同样有五处、四个不同的数：
+
+     .page                       32/48/120
+     .page.wide-page             0
+     @media{.page}               24/16/96
+     .container,.page > *        clamp(16px,3vw,32px)
+
+   规范全文见 UI设计规范.md 第 5b 节。 */
+
+ok('★ ★ 没有悬空令牌（var() 引用了但没声明 = 那条声明作废）', (function () {
+  /* ★ 这是本轮价值最高的一条断言。
+
+     CSS 里 var(--x) 引用了未定义的 --x 时，
+     浏览器【不报错、不警告】，只是把包含它的那条声明丢掉。
+     于是「padding:var(--s5) var(--s3)」看起来写了，
+     实测 padding 是 0 —— 而没有任何地方会告诉你。
+
+     这就是「左侧顶了边缘」的真正成因：
+     .side 的 padding 不是被覆盖成 0 的，
+     是先被写成 0（第 2576 行），而 110 行那条被后面的覆盖。
+
+     ★ 这条断言挡住的是一整类问题：
+       令牌改名、合并、删掉，所有引用它的地方静默失效。
+       上一轮合并间距阶梯时如果顺手删了 --s1~--s8，
+       200+ 处引用会同时变成「无内边距」，
+       而且没有任何脚本会报。 */
+  var body = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  var defined = new Set()
+  var d = /(--[a-zA-Z0-9-]+)\s*:/.exec('')
+  var re = /(--[a-zA-Z0-9-]+)\s*:/g
+  var m
+  while ((m = re.exec(body)) !== null) defined.add(m[1])
+  var used = new Map()
+  var re2 = /var\((--[a-zA-Z0-9-]+)/g
+  while ((m = re2.exec(body)) !== null) {
+    used.set(m[1], (used.get(m[1]) || 0) + 1)
+  }
+  var dangling = []
+  used.forEach(function (n, k) {
+    /* 带 fallback 的不算悬空：
+       var(--x, 12px) 在 --x 没定义时用 12px，声明仍然生效。 */
+    var hasFallback = new RegExp('var\\(' + k.replace(/[-]/g, '\\-') + '\\s*,').test(body)
+    if (!defined.has(k) && !hasFallback) dangling.push(k + ' ×' + n)
+  })
+  if (dangling.length) console.log('     ' + dangling.join('  |  '))
+  return dangling.length === 0
+})())
+
+ok('★ ★ 间距只有一套阶梯（旧令牌全部指向 --sp）', (function () {
+  /* 实测（改之前）：
+       --s1~--s8   4/8/12/16/24/32/48/64   ← 真正在用，引用 200+ 处
+       --sp1~--sp8 2/4/8/12/16/24/32/48   ← 上一轮新加，只有 5 处引用
+
+     ★ 两套并存，而且值不一样（--s1 是 4 不是 2）。
+       上一轮「间距 21 档 → 11 档」的结论是对着没在用的那套量的 ——
+       判据查的是「--sp1:2px 这些声明在不在」，
+       没查「实际生效的间距来自哪套」。
+
+     所以这条查的是「旧令牌指向新阶梯」，不是「新阶梯在不在」。 */
+  var need = { '--s1': '--sp2', '--s2': '--sp3', '--s3': '--sp4', '--s4': '--sp5',
+               '--s5': '--sp6', '--s6': '--sp7', '--s7': '--sp8', '--s8': '--sp8' }
+  var bad = []
+  Object.keys(need).forEach(function (k) {
+    var re = new RegExp(k.replace(/[-]/g, '\\-') + '\\s*:\\s*var\\(' +
+                        need[k].replace(/[-]/g, '\\-') + '\\)')
+    if (!re.test(css)) bad.push(k + '→' + need[k])
+  })
+  if (bad.length) console.log('     没指向新阶梯: ' + bad.join('  '))
+  return bad.length === 0
+})())
+
+/* ★ 要按【作用域】查，不能只看最后一条。
+       上一版用 /\.side\s*\{([^}]*)\}/ 扫全文，
+       结果把 @media (max-width:860px) 里的
+       .side{padding:0} 当成了「最后一条」——
+
+       ★ 那条只在 ≤860px 的轨道态生效，
+         拿它当通用值是错的。这跟第五节那个病根同一类：
+         规则要按作用域查，不是按出现顺序。
+
+       所以先整段挖掉 @media，再扫剩下的。 */
+ok('★ 侧栏横向内边距 ≥ 16px（内容不顶屏幕边，不含媒体查询）', (function () {
+  var body = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  /* 挖掉所有 @media ... { ... } 块（跟括号配对） */
+  var out = []
+  var depth = 0
+  body.split(String.fromCharCode(10)).forEach(function (l) {
+    if (depth === 0 && /^\s*@media/.test(l)) { depth = 1; return }
+    if (depth > 0) {
+      for (var i = 0; i < l.length; i++) {
+        if (l[i] === '{') depth++
+        else if (l[i] === '}') depth--
+      }
+      if (depth === 0) depth = 0
+      return
+    }
+    out.push(l)
+  })
+  body = out.join(String.fromCharCode(10))
+  var rules = []
+  var re = /(?:^|\n)\s*\.side\s*\{([^}]*)\}/g
+  var m
+  while ((m = re.exec(body)) !== null) rules.push(m[1])
+  if (!rules.length) { console.log('     媒体查询之外没有 .side 规则'); return false }
+  var last = rules[rules.length - 1]
+  /* 抓声明的值一律用 [^;}]+ 而不是 [^;]+。
+     padding:var(--s4)} 后面没有分号，
+     用 [^;]+ 会一路吃到下一条规则里去，
+     于是 v[1] 变成下一条的选择器，
+     判据报的是「用了一个不是 16 的令牌」——
+     而它其实写的就是 --s4。
+
+     同一天栽了两次：另一处是 .page 的 padding 抓到了 .page.on。 */
+  var pl = last.match(/padding(?:-left)?\s*:([^;}]+)/)
+  if (!pl) { console.log('     最后一条 .side 没写 padding（继承第一条的）'); return false }
+  var v = pl[1].trim().split(/\s+/)
+  /* padding 简写有四种写法，横向值的位置不一样：
+       1 段  padding:X              → 四边都是 X
+       2 段  padding:上下 左右       → 横向是 v[1]
+       3 段  padding:上 左右 下      → 横向是 v[1]
+       4 段  padding:上 右 下 左     → 横向是 v[3]
+     ★ 上一版只认 2 段和 4 段，把 1 段判成「无法判断」——
+       而 padding:var(--s4) 正是这一轮要的那个值。
+       判据把唯一正确的写法判死了，比没有判据更糟。 */
+  var px = v.length === 1 ? v[0]
+    : v.length === 2 ? v[1]
+    : v.length === 3 ? v[1]
+    : v.length >= 4 ? v[3]
+    : null
+  if (px === null) { console.log('     padding 写法认不出: ' + pl[1].trim()); return false }
+  /* 令牌形式：只认指向 16px 的那两个 */
+  var ref = px.indexOf('var(') >= 0
+    ? (/--s4|--sp5/.test(px) ? 16 : null)
+    : parseFloat(px)
+  if (ref === null) { console.log('     横向 padding 用了一个不是 16 的令牌: ' + px); return false }
+  if (ref < 16) { console.log('     横向 padding ' + ref + 'px（要 ≥16）'); return false }
+  return true
+})())
+
+ok('★ 页面级留白只有一个出处（不是五处各写各的）', (function () {
+  /* 实测改之前有五处：
+     .page / .page.wide-page / @media{.page} /
+     .container,.page > * 的 clamp / .page.wide-page .container.full
+
+     ★ 「有的页边距宽、有的窄」就是这么来的 ——
+       不是某一页写错了，是五处各自在改。 */
+  var body = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  var hits = []
+  var re = /(?:^|\n)\s*(\.[a-z-]*page[a-z-]*)\s*\{([^}]*)\}/g
+  var m
+  while ((m = re.exec(body)) !== null) {
+    if (/padding/.test(m[2]) && !/padding-bottom\s*:\s*0/.test(m[2])) hits.push(m[1])
+  }
+  var uniq = [...new Set(hits)]
+  if (uniq.length > 2) console.log('     页面级 padding 出现在 ' + uniq.length + ' 个选择器: ' + uniq.join(' '))
+  return uniq.length <= 2
+})(), '页面级 padding 只在 .page 和窄屏覆盖两处')
+
+ok('★ 页面里没有 clamp() 算出来的留白（边距不随视口宽度变）', (function () {
+  /* 原来有一条：
+       .container,.page > *{ padding-left:clamp(16px,3vw,32px) }
+     它叠在 .page 的留白上，于是实际边距是两层的和，
+     而且随视口宽度在 16~32 之间变 ——
+     刷新一次、窗口拖一下就换一个数，
+     截图对比时会以为布局动了。 */
+  var body = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  var bad = (body.match(/padding[^;]*clamp\([^)]*\)[^;]*/g) || [])
+  if (bad.length) console.log('     ' + bad.join(' | '))
+  return bad.length === 0
+})())
+
+/* ★ 这条上一版把期望值写死了：
+       var padB = 16
+       if (pb && /var\(--s5\)/.test(pb[0])) padB = 16
+     padB 本来就是 16，那个 if 什么也没做 ——
+     于是无论 CSS 写成什么，它都算 12 + 16 = 28 ≥ 16，恒为真。
+
+     反测立刻抓到了：把 bottom 退回 0、padding-bottom 退回 12，
+     这条断言报「没抓住」。
+
+     ★ 判据不读代码、只读自己心里的数，
+       那它判的不是代码，是自己。
+
+     现在真读：解析 bottom 和 padding-bottom 的实际值，
+     再按令牌表换算成像素。 */
+const SP_TOKEN = {
+  '--sp1': 2, '--sp2': 4, '--sp3': 8, '--sp4': 12, '--sp5': 16,
+  '--sp6': 24, '--sp7': 32, '--sp8': 48,
+  '--s1': 4, '--s2': 8, '--s3': 12, '--s4': 16,
+  '--s5': 24, '--s6': 32, '--s7': 48, '--s8': 48
+}
+ok('★ ★ 底部 sticky 操作栏里的按钮离屏幕底 ≥ 16px（真读 CSS 的值）', (function () {
+  /* 剥掉注释再扫。
+     上面那段注释里写着「sticky bottom:0 时，浏览器把这条钉在…」，
+     于是匹配 bottom 的时候抓到的是注释里的那句，
+     值变成「0 时，浏览器把这条钉在视口底下方 6px…」。
+     反测立刻报「没抓住」——这条断言一直是假的绿。
+
+     ★ 同一个教训第三次：
+       第一次 立场落点表扫全文，命中自己注释
+       第二次 /data/images/ 那条扫全文，命中自己注释
+       第三次 这一条
+       三次都是判据把说明自己的注释当成了被检查的代码。
+
+       所以凡是拿正则去 CSS 里找声明，第一步都必须剥注释。
+       没有例外。 */
+  var plain = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  var bar = plain.match(/\.editor-bar\{([\s\S]*?)\}/)
+  if (!bar) { console.log('     没找到 .editor-bar'); return false }
+  if (!/position:\s*sticky/.test(bar[1])) { console.log('     操作栏不是 sticky'); return false }
+
+  /* 把 'var(--x)' 或 '12px' 解析成像素；认不出来就返回 null */
+  function px(v) {
+    v = String(v || '').trim()
+    if (!v) return null
+    var t = v.match(/var\((--[a-z0-9-]+)/)
+    if (t) return SP_TOKEN[t[1]] === undefined ? null : SP_TOKEN[t[1]]
+    var n = parseFloat(v)
+    return isNaN(n) ? null : n
+  }
+
+  var b = bar[1].match(/(?:^|[;{\s])bottom:\s*([^;}]+)/)
+  if (!b) { console.log('     没写 bottom'); return false }
+  var off = px(b[1])
+  if (off === null) { console.log('     bottom 的值认不出: ' + b[1].trim()); return false }
+
+  /* padding-bottom：显式写优先，否则取 padding 简写的第三段 */
+  var padB = null
+  var pb = bar[1].match(/padding-bottom:\s*([^;}]+)/)
+  if (pb) padB = px(pb[1])
+  else {
+    var ps = bar[1].match(/(?:^|[;{\s])padding:\s*([^;}]+)/)
+    if (ps) {
+      var v = ps[1].trim().split(/\s+/)
+      padB = v.length === 1 ? px(v[0])
+        : v.length === 2 ? px(v[0])
+        : v.length === 3 ? px(v[2])
+        : v.length >= 4 ? px(v[2])
+        : null
+    }
+  }
+  if (padB === null) { console.log('     padding-bottom 的值认不出'); return false }
+
+  /* 条底钉在视口底 + bottom 偏移，往上再减去 padding-bottom，
+     最后减掉实测的 6px 偏移。
+
+     ★ 那 6px 是量出来的，不是猜的：
+       sticky bottom:0 时条底落在 706，视口底是 700。
+       逐项排除过 scroll-padding、各层 padding-bottom、
+       flex 与否、border、margin、body/html 的 overflow ——
+       全都改不动它，只有 position:static 才回到自然位置 753。
+
+     ★ 为什么偏移留在 CSS 里、判据这边反而减掉它：
+       这个浏览器没有 resize 工具，只在 1000×700 验证过，
+       换个视口高度那 6px 未必还在。
+       所以 CSS 用阶梯值 bottom:var(--s3)，
+       降级方向是「浮起一点」而不是「陷进去」；
+       判据按最坏情况减掉 6px ——
+       换个环境那 6px 没了，判据偏严 6px，方向是安全的。 */
+  var STICKY_SLOP = 6
+  var gap = off + padB - STICKY_SLOP
+  if (gap < 16) {
+    console.log('     bottom ' + off + ' + padding-bottom ' + padB +
+      ' − 实测偏移 ' + STICKY_SLOP + ' = ' + gap + 'px（要 ≥16）')
+    return false
+  }
+  return true
+})(), 'bottom 12 + padding-bottom 16 − 6 = 22px')
+
+ok('★ 规范文件写了边缘距离这一节', (function () {
+  var md = fs.readFileSync(ROOT + '/UI设计规范.md', 'utf8')
+  return /边缘距离/.test(md) && /≥ 16px/.test(md) && /只在一个地方给/.test(md)
+})())
+
+/* 改了 .page 就必须同时改 .page.wide-page
+
+   浏览器实测抓到的一处不一致：
+     @media (max-width:1024px) 里的 .page{padding:var(--s4)}
+     只覆盖了 .page。而 .page.wide-page 特异性更高（0,2,0 对 0,1,0），
+     于是在 1000px 视口上：
+       热点页 / 选题页    16px
+       成稿页 / 发布页    24px
+     同一屏里两页边距不同，用户来回切页一眼就看出来。
+
+   ★ 为什么静态查得到：
+     失败形态是「媒体查询里改了 .page 却没提 .page.wide-page」，
+     这是选择器层面的遗漏，不是计算结果 ——
+     所以扫 CSS 就能查，不必跑浏览器。
+
+   ★ 为什么不塞进 ui-probe：
+     试过。往探针模板里注入代码后，
+     生成的 ui-probe.js 出现两条重复的
+     window.__ui = (function () {，
+     整个探针语法错，报「不是函数」——
+     而报错在文件末尾，看末尾完全找不到原因。
+
+     为一个静态可查的检查去动一个稳定运行的自检探针，
+     代价不对等。这条留在验收里。 */
+ok('★ 改了 .page 就必须同时改 .page.wide-page（媒体查询里也算）', (function () {
+  var body = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  /* 逐个媒体查询块看：里面写了 .page 的 padding，
+     但没在同一块里提 .page.wide-page */
+  var bad = []
+  var re = /@media[^{]*\{([\s\S]*?\n\})/g
+  var m
+  while ((m = re.exec(body)) !== null) {
+    var blk = m[1]
+    var hasPage = /(^|[,{]\s*)\.page(?![\w-])[^{]*\{[^}]*padding/.test(blk)
+    if (!hasPage) continue
+    var hasWide = /\.page\.wide-page/.test(blk)
+    if (!hasWide) bad.push(m[0].slice(0, 46).replace(/\n/g, ' '))
+  }
+  if (bad.length) {
+    console.log('     这几处媒体查询改了 .page 的 padding，')
+    console.log('     但同一块里没有 .page.wide-page：')
+    bad.forEach(function (b) { console.log('       ' + b) })
+  }
+  return bad.length === 0
 })())
 
 sec('9ca 暂时性死区')

@@ -311,17 +311,58 @@ if (!rule) {
   process.exitCode = 1
 } else {
   const fail = []
-  const padTop = (rule.match(/padding:\s*(\d+)px/) || [])[1]
+  /* 原来这里写的是 rule.match(/padding:\s*(\d+)px/) —— 只认裸 px。
+     间距令牌化之后 .side .nav 写的是
+       padding:var(--s3) var(--s2) var(--s3)
+     匹配不到，于是报「.nav 没有 padding」。
+
+     这条判据一直在默默失效：上一次它还是绿的，
+     只因为那会儿 .nav 恰好写的是裸 px（8px 12px 8px）。
+     它绿的时候验证的不是现在这套写法。
+
+     而且它报的错是「没有 padding」——听起来像布局坏了，
+     实际是判据看不懂令牌。这种错报比不报更坏：
+     下一个人会去加 padding，把内边距越加越大。 */
+  const SP_TOKEN = {
+    '--sp1': 2, '--sp2': 4, '--sp3': 8, '--sp4': 12, '--sp5': 16,
+    '--sp6': 24, '--sp7': 32, '--sp8': 48,
+    '--s1': 4, '--s2': 8, '--s3': 12, '--s4': 16,
+    '--s5': 24, '--s6': 32, '--s7': 48, '--s8': 48
+  }
+  /* 把 var(--s3) 或 12px 解析成数字；认不出来返回 null */
+  function pxOf(v) {
+    v = String(v || '').trim()
+    if (!v) return null
+    const t = v.match(/var\((--[a-z0-9-]+)/)
+    if (t) return SP_TOKEN[t[1]] === undefined ? null : SP_TOKEN[t[1]]
+    const n = parseFloat(v)
+    return isNaN(n) ? null : n
+  }
+  /* padding 简写：1 段四边同值 / 2 段 上下 左右 / 3 段 上 左右 下 / 4 段 */
+  const pm = rule.match(/padding:\s*([^;}]+)/)
+  let padTop = null, padLeft = null, padRaw = null
+  if (pm) {
+    padRaw = pm[1].trim()
+    const v = padRaw.split(/\s+/)
+    padTop = pxOf(v[0])
+    padLeft = v.length === 1 ? pxOf(v[0])
+      : v.length === 2 ? pxOf(v[1])
+      : v.length === 3 ? pxOf(v[1])
+      : pxOf(v[3])
+  }
   const fixed = (rule.match(/\bheight:\s*(\d+)px/) || [])[1]
 
   if (fixed) {
     fail.push('.nav 写死了 height:' + fixed +
       'px —— 换成两行内容后装不下，且会盖过 flex 设置')
   }
-  if (!padTop) {
-    fail.push('.nav 没有 padding，内容会贴着边')
-  } else if (+padTop < 8) {
+  if (padTop === null) {
+    fail.push('.nav 的 padding 认不出（既不是裸 px 也不是已知令牌）: ' + (padRaw || '整条没写'))
+  } else if (padTop < 8) {
     fail.push('.nav padding 只有 ' + padTop + 'px，两行内容挤在一起')
+  }
+  if (padLeft !== null && padLeft < 8) {
+    fail.push('.nav 横向 padding 只有 ' + padLeft + 'px，序号离卡片边太近')
   }
   if (!/flex:0 0 auto/.test(rule)) {
     fail.push('.nav 没有 flex:0 0 auto，父容器空间不够时会先吃掉 padding')
@@ -331,7 +372,8 @@ if (!rule) {
   }
 
   console.log('── 静态侧（不需要浏览器，查的是最后一条 .side .nav）──')
-  console.log('  .nav padding  ' + (padTop || '★没有'))
+  console.log('  .nav padding  ' + (padRaw || '★没有') +
+    (padTop !== null ? '（上' + padTop + ' 左' + padLeft + '）' : ''))
   console.log('  .nav height   ' + (fixed || '无（好）'))
   console.log('  flex:0 0 auto ' + (/flex:0 0 auto/.test(rule) ? '有' : '★没有'))
   console.log('  grid-row      ' + (/grid-row/.test(rule) ? '★还有' : '无'))
