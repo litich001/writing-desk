@@ -36,7 +36,8 @@
     "hot": "node engine/hot.mjs",
     "hot:json": "node engine/hot-cli.mjs --json --flat",
     "stamp": "node engine/stamp.mjs",
-    "check": "node 验收测试.js && node 布局体检.js && node engine/layout.mjs && node engine/extract-test.mjs && node engine/style-test.mjs"
+    "check": "node 验收测试.js && node 布局体检.js && node engine/layout.mjs && node engine/extract-test.mjs && node engine/style-test.mjs && node engine/shots-check.mjs",
+    "shots": "node engine/shots-check.mjs"
   },
   "bin": {
     "hot-cli": "engine/hot-cli.mjs"

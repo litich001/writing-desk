@@ -3190,6 +3190,161 @@ ok('★ 改了 .page 就必须同时改 .page.wide-page（媒体查询里也算�
   return bad.length === 0
 })())
 
+/* ════════ 9n0 开源必备文件 ════════
+
+   这个项目从「自己用的工具」变成「公开发布的开源项目」，
+   所以有一批文件是发布之后才有的 —— 它们必须一直在，
+   不然过几个月就有人把它们删了，仓库质量悄悄掉下去。
+
+   ★ README 承诺的东西必须真的在：
+     写一个不存在的链接，比不写更糟 ——
+     点进去 404 的人会以为整个项目都不靠谱。 */
+
+sec('9n0 开源必备文件')
+const OPEN_FILES = ['LICENSE', 'README.md', 'CONTRIBUTING.md',
+  'CODE_OF_CONDUCT.md', 'SECURITY.md', '.gitignore', '.gitattributes']
+
+ok('★ 开源必备文件都在', (function () {
+  var miss = OPEN_FILES.filter(function (f) { return !fs.existsSync(ROOT + '/' + f) })
+  if (miss.length) console.log('     缺: ' + miss.join(' '))
+  return miss.length === 0
+})(), OPEN_FILES.length + ' 个')
+
+ok('★ GitHub 模板都在（Issue 两种 + PR）', (function () {
+  var need = ['.github/ISSUE_TEMPLATE/bug_report.md',
+              '.github/ISSUE_TEMPLATE/feature_request.md',
+              '.github/PULL_REQUEST_TEMPLATE.md']
+  var miss = need.filter(function (f) { return !fs.existsSync(ROOT + '/' + f) })
+  if (miss.length) console.log('     缺: ' + miss.join(' '))
+  return miss.length === 0
+})())
+
+ok('★ package.json 声明了协议、作者和主页（npm 页和 GitHub 都靠它）', (function () {
+  var pkg = JSON.parse(fs.readFileSync(ROOT + '/package.json', 'utf8'))
+  var miss = []
+  if (pkg.license !== 'Apache-2.0') miss.push('license=' + pkg.license)
+  if (!/lizhe/i.test(pkg.author || '')) miss.push('author=' + pkg.author)
+  if (!/lizhe\.work/.test(pkg.homepage || '')) miss.push('homepage=' + pkg.homepage)
+  if (miss.length) console.log('     ' + miss.join('  '))
+  return miss.length === 0
+})())
+
+ok('★ package.json 不是 private（private 会挡掉发布）', (function () {
+  return JSON.parse(fs.readFileSync(ROOT + '/package.json', 'utf8')).private !== true
+})())
+
+/* 先在外面把要写进说明文字的计数算出来 ——
+   ok() 的第三参与前面一样是表达式，不是注释。 */
+const README_LINKS = (function () {
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+  var out = []
+  var re = /\[[^\]]+\]\(([^)]+)\)/g
+  var m
+  while ((m = re.exec(md)) !== null) out.push(m[1])
+  return out.filter(function (h) { return !/^(https?:|mailto:|#)/.test(h) }).length
+})()
+ok('★ ★ README 里引用的本地文件全部存在（不写断链）', (function () {
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+  var links = []
+  var re = /\[[^\]]+\]\(([^)]+)\)/g
+  var m
+  while ((m = re.exec(md)) !== null) links.push(m[1])
+  var local = links.filter(function (h) {
+    return !/^(https?:|mailto:|#)/.test(h)
+  })
+  var bad = local.filter(function (h) {
+    return !fs.existsSync(ROOT + '/' + h.split('#')[0])
+  })
+  if (bad.length) console.log('     断链: ' + bad.join('  '))
+  return bad.length === 0
+})(), README_LINKS + ' 条本地链接')
+
+const README_ANCHORS = (fs.readFileSync(ROOT + '/README.md', 'utf8')
+  .match(/\]\(#([^)]+)\)/g) || []).length
+ok('★ ★ README 里的目录锚点全部有效', (function () {
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+  var heads = new Set()
+  md.split(String.fromCharCode(10)).forEach(function (l) {
+    var m = l.match(/^#{1,4}\s+(.+)$/)
+    if (!m) return
+    var s = m[1].trim()
+      .replace(/`/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/[*_]/g, '')
+      .toLowerCase()
+      .replace(/[^\w\u4e00-\u9fff\- ]/g, '')
+      .replace(/\s+/g, '-')
+    heads.add(s)
+  })
+  var anchors = []
+  var re = /\]\(#([^)]+)\)/g
+  var m
+  while ((m = re.exec(md)) !== null) anchors.push(m[1])
+  var bad = anchors.filter(function (a) { return !heads.has(a) })
+  if (bad.length) console.log('     失效锚点: ' + bad.join('  '))
+  return bad.length === 0
+})(), README_ANCHORS + ' 个锚点')
+
+ok('★ README 写清了四件对读者最要紧的事', (function () {
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+  var need = {
+    '怎么用（可点路径）': /怎么用/,
+    '功能说明': /功能清单/,
+    '作者主页': /lizhe\.work/,
+    '已知限制': /已知限制/,
+    '协议': /Apache/
+  }
+  var miss = []
+  Object.keys(need).forEach(function (k) {
+    if (!need[k].test(md)) miss.push(k)
+  })
+  if (miss.length) console.log('     缺: ' + miss.join('  '))
+  return miss.length === 0
+})())
+
+ok('★ 有完整功能说明文档（每个功能含「怎么点」）', (function () {
+  if (!fs.existsSync(ROOT + '/docs/功能说明.md')) return false
+  var md = fs.readFileSync(ROOT + '/docs/功能说明.md', 'utf8')
+  /* 四页都要写到，且每页至少有一处「怎么用」 */
+  var pages = ['热点', '定题', '成稿', '发布']
+  var miss = pages.filter(function (p) { return md.indexOf(p) < 0 })
+  var howto = (md.match(/怎么用/g) || []).length
+  if (miss.length) console.log('     功能说明缺页面: ' + miss.join(' '))
+  if (howto < 10) console.log('     「怎么用」只有 ' + howto + ' 处（每个功能都该有）')
+  return miss.length === 0 && howto >= 10
+})())
+
+ok('★ 截图这件事写清楚了（拍不到就说拍不到，不放占位图）', (function () {
+  if (!fs.existsSync(ROOT + '/docs/截图.md')) return false
+  var md = fs.readFileSync(ROOT + '/docs/截图.md', 'utf8')
+  var readme = fs.readFileSync(ROOT + '/README.md', 'utf8')
+  var need = ['要截哪几张', '怎么截', '01-hot.png']
+  var miss = need.filter(function (k) { return md.indexOf(k) < 0 })
+  if (miss.length) console.log('     截图说明缺: ' + miss.join(' '))
+  /* README 里不能有指向不存在图片的引用（GitHub 上就是破图） */
+  var refs = []
+  var re = /!\[[^\]]*\]\(([^)]+)\)/g
+  var m
+  while ((m = re.exec(readme)) !== null) {
+    if (!/^(https?:|data:)/.test(m[1])) refs.push(m[1])
+  }
+  var bad = refs.filter(function (r) { return !fs.existsSync(ROOT + '/' + r) })
+  if (bad.length) console.log('     README 图片断链: ' + bad.join(' '))
+  return miss.length === 0 && bad.length === 0
+})())
+
+ok('★ 有截图自检脚本（补完图能自己验一遍）', (function () {
+  if (!fs.existsSync(ROOT + '/engine/shots-check.mjs')) return false
+  var src = fs.readFileSync(ROOT + '/engine/shots-check.mjs', 'utf8')
+  return /断链/.test(src) && /0 字节/.test(src)
+})())
+
+ok('★ 换行符策略统一（Windows 开发不会污染 diff）', (function () {
+  var ga = fs.readFileSync(ROOT + '/.gitattributes', 'utf8')
+  return /eol=lf/.test(ga) && /text=auto/.test(ga)
+})())
+
+
 sec('9ca 暂时性死区')
 {
   const rw = js.indexOf('function renderWrite')
