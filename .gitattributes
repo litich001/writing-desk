@@ -1,0 +1,11 @@
+# 自动处理换行符：检出时按系统，入库时统一 LF
+* text=auto
+
+# 这些保持 LF，避免 Windows 下多出 ^M
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.html text eol=lf

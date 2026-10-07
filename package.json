@@ -1,8 +1,26 @@
 {
-  "name": "xiezuotai",
+  "name": "write-work",
   "version": "5.0.0",
-  "description": "本地公众号写作工作台：选题→定题→成稿→配图→排版发布",
-  "private": true,
+  "description": "本地公众号写作工作台：选题→定题→成稿→配图→排版发布（Write Work · 写作台）",
+  "license": "Apache-2.0",
+  "author": "Lizhe (https://www.lizhe.work)",
+  "homepage": "https://www.lizhe.work",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/litich001/writing-desk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/litich001/writing-desk/issues"
+  },
+  "keywords": [
+    "writing",
+    "wechat",
+    "cms",
+    "hot-topics",
+    "markdown",
+    "local-first",
+    "chinese"
+  ],
   "type": "module",
   "engines": {
     "node": ">=20"
