@@ -3285,22 +3285,136 @@ ok('★ ★ README 里的目录锚点全部有效', (function () {
   return bad.length === 0
 })(), README_ANCHORS + ' 个锚点')
 
-ok('★ README 写清了四件对读者最要紧的事', (function () {
+/* ★ 这条原来查的是「怎么用 / 功能清单 / 主页 / 已知限制」四个词。
+
+   README 重写后「怎么用」那个词没了（那段标题改叫
+
+   「一篇稿子的完整流程」），判据就红了。
+
+
+
+   ★ 判据查字面词，挡不住内容被换掉；查内容本身，才挡得住「读者看不懂」。
+
+
+
+   用户原话：「你的简介写的什么玩意？乱七八糟的，人也看不懂，AI也看不懂」
+
+             「你现在写都是些技术化的东西…你不应该放在这里的」
+
+
+
+   所以改成直接查四件读者真正要的事：给谁做的、四个功能、
+
+   一条能照着走的流程、适合谁不适合谁、常见问题。 */
+
+ok('★ ★ README 说清了这是给 AI 时代个人 OPC 做的', (function () {
+
   var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
-  var need = {
-    '怎么用（可点路径）': /怎么用/,
-    '功能说明': /功能清单/,
-    '作者主页': /lizhe\.work/,
-    '已知限制': /已知限制/,
-    '协议': /Apache/
-  }
-  var miss = []
-  Object.keys(need).forEach(function (k) {
-    if (!need[k].test(md)) miss.push(k)
-  })
-  if (miss.length) console.log('     缺: ' + miss.join('  '))
-  return miss.length === 0
+
+  return /OPC/.test(md) && /自媒体/.test(md) && /这工具是给谁做的/.test(md)
+
 })())
+
+
+
+ok('★ ★ 四个核心功能各占一节（抓 / 改 / 配 / 排）', (function () {
+
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+  var need = {
+
+    '抓（热点）': /^### .*抓/m,
+
+    '改（改写）': /^### .*改/m,
+
+    '配（配图）': /^### .*配/m,
+
+    '排（排版）': /^### .*排/m
+
+  }
+
+  var miss = []
+
+  Object.keys(need).forEach(function (k) {
+
+    if (!need[k].test(md)) miss.push(k)
+
+  })
+
+  if (miss.length) console.log('     缺这四节: ' + miss.join(' '))
+
+  return miss.length === 0
+
+})())
+
+
+
+ok('★ ★ README 有一条能照着走的完整流程', (function () {
+
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+  return /完整流程|走完一圈/.test(md) && /热点页/.test(md) && /定题页/.test(md)
+
+})())
+
+
+
+ok('★ ★ README 写清了适合谁 / 不适合谁', (function () {
+
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+  return /适合谁/.test(md) && /不适合谁/.test(md)
+
+})())
+
+
+
+ok('★ ★ README 常见问题答了三个读者真会问的', (function () {
+
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+  var need = ['抓不到', '一键生成', '传到网上']
+
+  var miss = need.filter(function (k) { return md.indexOf(k) < 0 })
+
+  if (miss.length) console.log('     FAQ 缺: ' + miss.join(' '))
+
+  return miss.length === 0
+
+})())
+
+
+
+ok('★ ★ 主页和协议在 README 里', (function () {
+
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+  return /lizhe\.work/.test(md) && /Apache/.test(md)
+
+})())
+
+
+
+ok('★ ★ 工程语言不许出现在读者第一屏（判据/令牌/设计规范挪到开发者段）', (function () {
+
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+  var devAt = md.indexOf('## 给开发者')
+
+  if (devAt < 0) { console.log('     没有「给开发者」分段'); return false }
+
+  var front = md.slice(0, devAt)
+
+  var jargon = ['断言', '判据', '令牌', '悬空', '特异度']
+
+  var leak = jargon.filter(function (w) { return front.indexOf(w) >= 0 })
+
+  if (leak.length) console.log('     第一屏出现了: ' + leak.join(' '))
+
+  return leak.length === 0
+
+})())
+
 
 ok('★ 有完整功能说明文档（每个功能含「怎么点」）', (function () {
   if (!fs.existsSync(ROOT + '/docs/功能说明.md')) return false
@@ -4284,8 +4398,58 @@ ok('package.json 声明 Node 版本下限（用到原生 fetch）', />=\s*20/.te
 ok('package.json 有 scripts（别人知道怎么跑）', !!(pkg.scripts && Object.keys(pkg.scripts).length >= 5))
 ok('★ scripts 里有 check 一键全检', typeof pkg.scripts?.check === 'string')
 ok('★ CLI 登记为 bin（npx 可用）', !!(pkg.bin && pkg.bin['hot-cli']))
-ok('有 README 且写清三步启动', fs.existsSync(ROOT + '/README.md') && /三步启动/.test(fs.readFileSync(ROOT + '/README.md', 'utf8')))
-ok('★ README 诚实说明「不能即插即用」', /不能吹/.test(fs.readFileSync(ROOT + '/README.md', 'utf8')))
+/* ★ 原来查的是「三步启动」这四个字。
+
+   README 重写后这一节改叫「安装」，字面查不到就误报了。
+
+   真正要保的是 clone / install / run 三条命令都在 ——
+
+   标题叫什么不重要，所以按意图查内容。 */
+
+ok('★ README 写清启动步骤（clone / install / run 三条都在）', (function () {
+
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+  var need = ['git clone', 'npm install', 'npm run restart']
+
+  var miss = need.filter(function (k) { return md.indexOf(k) < 0 })
+
+  if (miss.length) console.log('     启动步骤缺: ' + miss.join(' '))
+
+  return miss.length === 0
+
+})())
+
+/* ★ 原来查「不能即插即用」那句。
+
+   要保的是【诚实】—— 读者得知道 AI 不在工具里，
+
+   不然会以为是「打开就能出成品」。
+
+   README 重写后诚实的话换成了「为什么不内置模型」的说明，所以按意思查。 */
+
+ok('★ README 诚实说明边界（AI 不内置 / 抓不到会明说 / 数据不出本机）', (function () {
+
+  var md = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+  var need = [
+
+    ['说清不内置模型', /不内置模型|不代劳|不内置 AI 模型/],
+
+    ['抓不到会明说', /明说|不会假装抓到了/],
+
+    ['数据不出本机', /不上云|不出这台电脑|不会传到网上|不上传/]
+
+  ]
+
+  var miss = need.filter(function (p) { return !p[1].test(md) })
+
+  if (miss.length) console.log('     缺: ' + miss.map(function (p) { return p[0] }).join(' '))
+
+  return miss.length === 0
+
+})())
+
 ok('有热点筛选原理文档（对外能讲清）', fs.existsSync(ROOT + '/docs/热点筛选原理.md'))
 ok('★ 原理文档写清了去重键和长度', /前\s*14\s*个字/.test(fs.readFileSync(ROOT + '/docs/热点筛选原理.md', 'utf8')))
 ok('原理文档写了 4 小时刷新', /4\s*小时/.test(fs.readFileSync(ROOT + '/docs/热点筛选原理.md', 'utf8')))
