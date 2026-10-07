@@ -3459,6 +3459,224 @@ ok('★ 换行符策略统一（Windows 开发不会污染 diff）', (function (
 })())
 
 
+/* ════════ 9n1 README 读者服务面 ════════
+
+   用户原话：
+
+     「你写的东西是不够全呢？那作为一个项目简介，是否还应该有很多其他东西？
+
+       就是用户如何安装的？怎么样简单的来使用的？
+
+       然后把我那几个其他平台的作品也放上，CreatorOS、AIGEO什么的。」
+
+   ★ 这一组查的不是「写得全不全」，是三件具体的事：
+
+     一 装得上 —— Node 前置 + Windows 双击 + 三行命令 + 四个常见故障
+
+        只写「npm install」等于没写。读者卡在哪一步不知道。
+
+     二 用得动 —— 必须有一条「第一次用」的最短路径，
+
+        不是让人读完 400 行才动手。
+
+     三 找得到你 —— 相关产品链接必须能点通。
+
+        链接写错比不写更糟：点进去 404 的人会以为整个项目都不靠谱。
+
+   这一组以前没有，所以前两轮 README 重写时，
+
+   「装不上」「不知道从哪开始」「作者是谁」全靠我临场记着。
+
+   判据没写 = 没人核 = 下次还会漏。 */
+
+sec('9n1 README 读者服务面')
+
+var README_TXT = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+/* ── 装得上 ── */
+
+ok('★ ★ README 写了 Node 前置要求（装之前就得知道）', (function () {
+
+  return /Node\.js/.test(README_TXT) && /20/.test(README_TXT) && /nodejs\.org/.test(README_TXT)
+
+})())
+
+ok('★ ★ README 给了两种启动方式（Windows 双击 + 命令行）', (function () {
+
+  var hasBat = /启动\.bat/.test(README_TXT)
+
+  var hasCli = /git clone/.test(README_TXT) && /npm install/.test(README_TXT)
+
+  if (!hasBat) console.log('     没有提 Windows 双击启动')
+
+  if (!hasCli) console.log('     没有命令行三步')
+
+  /* 启动.bat 真在仓库里吗？文档写了没这文件就是骗人 */
+
+  var batExists = fs.readdirSync(ROOT).some(function (f) { return /\.bat$/i.test(f) })
+
+  if (!batExists) console.log('     ★ 写了启动.bat 但仓库里没有 .bat 文件')
+
+  return hasBat && hasCli && batExists
+
+})())
+
+ok('★ ★ README 有「装不上」的排障表（读者卡住最常见的一步）', (function () {
+
+  /* 光写成功路径不算写安装 —— 卡住的人找不到答案就放弃了。 */
+
+  var need = ['npm 不是', 'Cannot find module', '端口', '白屏']
+
+  var miss = need.filter(function (k) { return README_TXT.indexOf(k) < 0 })
+
+  if (miss.length) console.log('     排障表缺: ' + miss.join(' '))
+
+  return miss.length === 0
+
+})(), '4 种常见故障')
+
+ok('★ ★ README 说清了不联网能不能用（抓热点之外都要用得到）', (function () {
+
+  return /不联网能不能用/.test(README_TXT) && /能/.test(README_TXT)
+
+})())
+
+/* ── 用得动 ── */
+
+ok('★ ★ ★ README 有一条「第一次用」的最短路径', (function () {
+
+  /* ★ 这条是这一组里最要紧的。
+
+     README 越写越长的时候，人不是读不下去，是不知道从哪动手。
+
+     所以必须有一条三步以内能走完的路径，
+
+     而且要在讲完所有功能之后、细节之前。 */
+
+  var at = README_TXT.indexOf('第一次用')
+
+  if (at < 0) { console.log('     没有「第一次用」这一节'); return false }
+
+  var seg = README_TXT.slice(at, at + 1400)
+
+  var steps = (seg.match(/### 第 \d 步/g) || []).length
+
+  if (steps < 3) console.log('     「第一次用」只有 ' + steps + ' 步（至少三步）')
+
+  return steps >= 3
+
+})())
+
+ok('★ ★ README 有「日常怎么用」（不是只有第一次）', (function () {
+
+  return /日常怎么用/.test(README_TXT)
+
+})())
+
+/* ── 找得到你 ── */
+
+/* ★ 这条原来查的是全文里有没有「天行 GEO」「Creator OS」这两个词。
+
+  反向验证时删掉整个「## 相关产品」节，它照样绿 ——
+  因为作者署名行里就写着「天行 GEO 品牌主理人 · Creator OS 出品人」。
+
+  ★ 全文搜词只能证明「某处提过」，证明不了「读者找得到」。
+    而读者找不到 = 这个产品等于不存在。
+
+  所以改成：先切出那一节，再看节里有没有。
+  节被删掉 → 节是空字符串 → 直接红。 */
+ok('★ ★ ★ README 有「相关产品」这一节（不是只在署名行提一句）', (function () {
+ var NL2 = String.fromCharCode(10)
+ var L = README_TXT.split(NL2)
+ var a2 = -1
+ var b2 = -1
+ for (var i = 0; i < L.length; i++) {
+   if (a2 < 0 && /^##\s*相关产品\s*$/.test(L[i])) a2 = i
+   if (a2 >= 0 && i > a2 && /^##\s/.test(L[i])) { b2 = i; break }
+ }
+ if (a2 < 0) { console.log('     没有「## 相关产品」这一节'); return false }
+ if (b2 < 0) { console.log('     「## 相关产品」是最后一节，且后面没内容'); return false }
+ var seg = L.slice(a2, b2).join(NL2)
+ var need = {
+   '天行GEO': /天行\s*GEO|aigeo/i,
+   'Creator OS': /Creator\s*OS|creatoros/i,
+   '主页': /lizhe\.work/,
+   '每行都得给地址（不能只写产品名）': /https?:\/\//
+ }
+ var miss = []
+ Object.keys(need).forEach(function (k) { if (!need[k].test(seg)) miss.push(k) })
+ if (miss.length) console.log('     这一节里缺: ' + miss.join(' '))
+ /* 至少两个产品各带一个完整地址，不靠读者自己搜 */
+  /* ★ URL 前面允许空白或 < —— Markdown 自动链接是 <https://…>，
+     只认空白会把好版本判死。这坑是反向验证逼出来的。 */
+  var rows = seg.split(NL2).filter(function (l) { return /^\s*\|.*\|[\s<]*https?:\/\//.test(l) })
+ if (rows.length < 2) console.log('     带完整地址的产品行只有 ' + rows.length + ' 行（至少 2 行）')
+ return miss.length === 0 && rows.length >= 2
+})())
+
+
+ok('★ ★ ★ README 里的外链都写成完整地址（不靠读者拼）', (function () {
+
+  /* ★ 只写「Creator OS 主页」不给地址，等于让读者自己搜。
+
+     搜不到就等于这个产品不存在。 */
+
+  var urls = []
+
+  var re = /https?:\/\/[^\s)\]]+/g
+
+  var m
+
+  while ((m = re.exec(README_TXT)) !== null) urls.push(m[0])
+
+  var need = ['https://aigeo.games/', 'https://creatoros.com.cn/',
+
+             'https://www.lizhe.work']
+
+  var miss = need.filter(function (u) { return urls.indexOf(u) < 0 })
+
+  if (miss.length) console.log('     缺完整地址: ' + miss.join(' '))
+
+  return miss.length === 0
+
+})(), '9 条外链')
+
+ok('★ README 有路线图（让人知道作者打算做什么）', (function () {
+
+  return /路线图/.test(README_TXT) && /- \[x\]/.test(README_TXT) && /- \[ \]/.test(README_TXT)
+
+})())
+
+ok('★ README 表格没有断列（渲染歪了读者以为漏内容）', (function () {
+
+  /* ★ 表格分隔行和表头列数不一致时，GitHub 照样渲染，
+
+     只是歪掉 —— 没人会去查，但也没人看得出少了什么。 */
+
+  var bad = []
+
+  README_TXT.split(String.fromCharCode(10)).forEach(function (l, i) {
+
+    if (!/^\s*\|/.test(l)) return
+
+    var prev = README_TXT.split(String.fromCharCode(10))[i - 1] || ''
+
+    if (!/^\s*\|/.test(prev)) return
+
+    var a = (l.match(/\|/g) || []).length
+
+    var b = (prev.match(/\|/g) || []).length
+
+    if (a !== b) bad.push('第 ' + (i + 1) + ' 行（' + a + ' vs ' + b + ' 列）')
+
+  })
+
+  if (bad.length) console.log('     ' + bad.slice(0, 5).join('  '))
+
+  return bad.length === 0
+
+})())
+
 sec('9ca 暂时性死区')
 {
   const rw = js.indexOf('function renderWrite')
