@@ -858,9 +858,15 @@ ok('★ 手册标注了标点的四种合法用法（图注/来源表/表格/直
     /每千字 5~10/.test(manual) && /c\.bold \/ k >= 5/.test(js) &&
     /每千字 8~12/.test(stylesTxt) === false)
 
-  ok('★ 手册里的路径指向当前目录（不是旧位置）',
-    /E:\\Codex\\Opencode\\写作台/.test(manual) &&
-    !/Get-ChildItem "E:\\文档/.test(manual))
+/* 这条原来反过来要求手册里必须有 E:\Codex\Opencode\写作台 ——
+   把维护者自己机器上的盘符写成了「要求」。
+   别人机器上那条路径不存在，Agent 第一条命令就跑不通，
+   手册也就失去了「拿去就能用」这个唯一的卖点。
+
+   ★ 同一个检查不许在两处各写一份 —— 改一处就会漏。
+     新的 owner 是 9n2「另一个 AI 能不能接手」里的
+     「手册里没有写死任何机器的绝对路径」，那里还额外查了
+     macOS 家目录和 Linux 家目录。 */
 /* ════════ 9ca. 渲染期状态必须在任何 render 之前声明 ════════
    暂时性死区（TDZ）本项目已栽四次：
      wvTimer / peekAbort / peekHtml / newTitlesPending
@@ -2513,7 +2519,11 @@ ok('★ ★ 立场落点表里没有 AI 连接词（不靠假装惊讶来充观�
    AI 交 32 字照样进候选区，没有任何地方拦。
 
    所以长度上限必须同时出现在三处，断言把它们绑一起。 */
-ok('★ 提示词里写了标题字数上限', /12~2[0-4] 字/.test(js))
+/* ★ 这条原来写的是 /12~2[0-4] 字/ —— 12~20 到 12~24 全放行。
+   而手册第 4 节写着「12~24 字」，代码上限是 22，
+   判据一放宽，这个矛盾就永远抓不到。
+   放宽的判据不是判据，是遮羞布。 */
+ok('★ 提示词里写了标题字数上限（收紧到 12~22，不许再放宽）', /12~22 字/.test(js))
 ok('★ parseTitlePool 的放行上限不超过 24（不是各写一个数）', (function () {
   /* ★ 正则原来查 .filter(s => s.length >= N && s.length <= M)
      而这一轮 app.js 改成了两段 if（为了把超长的记下来、提示用户），
@@ -3491,7 +3501,16 @@ ok('★ 换行符策略统一（Windows 开发不会污染 diff）', (function (
 
 sec('9n1 README 读者服务面')
 
+
+var MANUAL = fs.readFileSync(ROOT + '/AI操作手册.md', 'utf8')
+
+/* ★ 两个常量提到一起。9n1 和 9n2 的断言都要用 README_TXT，
+   声明排在使用后面 → var 不报暂时性死区，只给你 undefined，
+   报错变成「undefined.test is not a function」，
+   看起来像判据写错，其实是声明顺序。这个坑栽过五次。 */
 var README_TXT = fs.readFileSync(ROOT + '/README.md', 'utf8')
+
+/* ── 一 手册可移植 ── */
 
 /* ── 装得上 ── */
 
@@ -3675,6 +3694,228 @@ ok('★ README 表格没有断列（渲染歪了读者以为漏内容）', (func
 
   return bad.length === 0
 
+})())
+
+/* ════════ 9n2 另一个 AI 能不能接手 ════════
+
+   用户原话：
+     「你把什么 Node JS 这东西，那你不是写在你的这个 Skill 里面吗？
+       你这个 Skill 到底怎么写的？规范不规范？
+       你有没有确保它另外一个 AI 能拿去，能够完整地去使用你的功能啊？」
+     「你本地的话，你不能联网，你也补充不了素材，你也没有大模型接入，
+       你怎么进行改写呢？你写的东西都不对呀。」
+
+   ★ 这一组查三件具体的事，每一件都对应真实存在的毛病：
+
+   一 手册能不能被别的机器上的 AI 直接用
+     真实毛病：手册第 1 节把路径写死成
+       E:\Codex\Opencode\写作台\data\queue
+     别人机器上那条路径根本不存在 → Agent 第一条命令就跑不通。
+     还写「项目有两份」，那是维护者自己的习惯，不是项目的性质。
+
+   二 文档有没有自相矛盾
+     真实毛病：第 4 节写「标题 12~24 字」，第 16 节写「12~22 字」，
+     而代码上限是 22。只读第 4 节的 Agent 会交 24 字标题，然后被丢掉。
+     而验收里那条写的是 /12~2[0-4] 字/ —— 故意放宽，正好放过这个矛盾。
+
+   三 读者会不会以为「本地工具 = 没有模型 = 写不了」
+     真实毛病：README 通篇说「AI 在你那边」，却从没说清
+     写作台联网只抓新闻图片、你的 AI 才有模型和联网。
+     读者只知道「不内置」，不知道活到底谁干。
+
+   ════════ 今天栽的坑，记一笔 ════════
+
+   改手册时在 node -e 里数反斜杠，PowerShell 把转义吃掉，
+   于是「改前 8 处 / 改后 0 处」两个数都是 0 —— 正则压根没匹配上。
+
+   ★ 用 -e 里的正则去数带转义的字符，数出来永远是 0，
+     而 0 看起来正是「已经改好了」。
+     假绿长得跟真绿一模一样。带正则的活儿写文件，不写在 -e 里。 */
+
+sec('9n2 另一个 AI 能不能接手')
+
+ok('★ ★ ★ 手册里没有写死任何机器的绝对路径', (function () {
+  /* 真毛病：第 1 节写的是 E:\Codex\Opencode\写作台\data\queue
+     别人机器上不存在，Agent 第一条命令就跑不通 */
+  var bad = []
+  MANUAL.split(String.fromCharCode(10)).forEach(function (l, i) {
+    if (/[A-Za-z]:\\/.test(l)) bad.push('盘符 行' + (i + 1))
+    if (/\/Users\//.test(l)) bad.push('macOS 家目录 行' + (i + 1))
+    if (/\/home\/[a-z]/.test(l)) bad.push('Linux 家目录 行' + (i + 1))
+  })
+  if (bad.length) console.log('     ' + bad.join('  '))
+  return bad.length === 0
+})())
+
+ok('★ ★ 手册说明了项目根目录怎么判断', (function () {
+  /* 只说「相对根目录」不够 —— Agent 得能自己判断根目录在哪 */
+  return /项目根目录/.test(MANUAL) && /AI操作手册\.md/.test(MANUAL) && /同级/.test(MANUAL)
+})())
+
+ok('★ ★ 手册讲清了「你是谁」：模型和联网是你自己的', (function () {
+  /* 读者最容易误解的地方：
+     「本地工具」被理解成「没模型、不能联网、那怎么写稿」。
+     手册开头必须一句话讲清分工。 */
+  var need = {
+    '说清项目不含模型': /不含任何大模型|不内置任何模型|没有任何模型接口/,
+    '说清 Agent 有自己的模型': /你自己的模型|模型和联网都是它自己的|有你自己的模型/,
+    '说清 Agent 自己联网核实': /联网核实/,
+    '说清改写是谁干的': /改写是你干的|你来改写/
+  }
+  var miss = []
+  Object.keys(need).forEach(function (k) { if (!need[k].test(MANUAL)) miss.push(k) })
+  if (miss.length) console.log('     缺: ' + miss.join('  '))
+  return miss.length === 0
+})())
+
+ok('★ ★ 手册给了跨平台命令（不只有 PowerShell）', (function () {
+  var bash = /```bash/.test(MANUAL)
+  var ps = /```powershell/.test(MANUAL)
+  var fwd = /node engine\//.test(MANUAL)
+  var back = /node engine\\/.test(MANUAL)
+  if (!bash) console.log('     没有 bash 块（macOS/Linux 的 Agent 用不了）')
+  if (!fwd) console.log('     没有正斜杠的 node 命令')
+  if (back) console.log('     还有 node engine\\ 反斜杠写法，只有 Windows 认')
+  return bash && ps && fwd && !back
+})())
+
+ok('★ ★ 手册说明了 Agent 不需要装这个项目', (function () {
+  return /不需要/.test(MANUAL) && /(Node|代码)/.test(MANUAL)
+})())
+
+/* ── 二 文档不许自相矛盾 ── */
+
+ok('★ ★ ★ 标题字数只有一种说法（12~22）', (function () {
+  /* 真毛病：第 4 节写 12~24，第 16 节写 12~22，代码上限 22。
+     只读第 4 节的 Agent 会交 24 字标题，然后被候选区丢掉。
+     而旧断言写的是 /12~2[0-4] 字/ —— 故意放宽，正好放过这个矛盾。 */
+  var bad = []
+  MANUAL.split(String.fromCharCode(10)).forEach(function (l, i) {
+    var m = l.match(/12\s*[~～]\s*\d+\s*字/)
+    if (!m) return
+    var num = m[0].match(/\d+/g)
+    if (num[1] !== '22') bad.push('行' + (i + 1) + ': ' + m[0])
+  })
+  if (bad.length) console.log('     ' + bad.join('  '))
+  return bad.length === 0
+})())
+ok('★ ★ 判据自己不许再放宽（把 12~2[0-4] 那种写法堵死）', (function () {
+  /* ★ 这条改过两次，两次都是同一个毛病：
+
+     第一次：它在整个文件里搜那个字符串，而它自己的注释和报错文案里
+     就写着那个字符串 —— 自己抓自己，永远红。
+
+     第二次：改成剥注释后再把自己那几行挖掉，
+     但挖终点时用 indexOf 猜 —— 守卫正文里就有转义过的正则字面量，
+     里面含看起来像注释结束符的片段，按字符找终点必然找错。
+     跟「靠行号找块尾」是同一个毛病：靠字符猜结构。
+
+     ★ 自检断言必须先把自己摘干净，
+       否则它就变成永远失败的判据，
+       而永远失败的判据会被当成「环境有问题」忽略掉，
+       它守的东西一点也没守住。
+
+     这里的做法：剥注释 → 从守卫标题一路砍到文件尾 → 搜剩下的。
+     砍尾比挖准边界更不容易错，而且守卫后面本来就不该再有放宽写法。 */
+  var raw = fs.readFileSync(ROOT + '/验收测试.js', 'utf8')
+  var src = raw.replace(/\/\*[\s\S]*?\*\//g, '')
+  var cut = src.indexOf('★ ★ 判据自己不许再放宽')
+  if (cut < 0) return true
+  src = src.slice(0, cut)
+  var hit = /\/12~2\[/.test(src)
+  if (hit) console.log('     ★ 判据里还有 12~2[ 这种放宽写法')
+  return !hit && /12~22 字/.test(fs.readFileSync(ROOT + '/app.js', 'utf8'))
+})())
+
+ok('★ ★ 手册里的命令路径都是正斜杠（三个平台都跑）', (function () {
+  var back = []
+  MANUAL.split(String.fromCharCode(10)).forEach(function (l, i) {
+    if (/engine\\/.test(l)) back.push('行' + (i + 1))
+  })
+  if (back.length) console.log('     ' + back.join('  '))
+  return back.length === 0
+})())
+
+ok('★ 手册里的任务类型和 README 一致（AI 按手册做才不算白做）', (function () {
+  var md = README_TXT
+  var types = ['write', 'rewrite', 'polish', 'topic', 'material', 'audit']
+  var missM = types.filter(function (t) { return MANUAL.indexOf('`' + t + '`') < 0 })
+  var missR = types.filter(function (t) { return md.indexOf('`' + t + '`') < 0 })
+  if (missM.length) console.log('     手册没写: ' + missM.join(' '))
+  if (missR.length) console.log('     README 没写: ' + missR.join(' '))
+  return missM.length === 0 && missR.length === 0
+})())
+
+/* ── 三 读者不该以为「本地 = 干不了」 ── */
+
+ok('★ ★ ★ README 开头就说清项目不含大模型', (function () {
+  var md = README_TXT
+  var at = md.indexOf('## 先说清一件事')
+  if (at < 0) { console.log('     没有「先说清一件事」这一节'); return false }
+  /* 得排在「四个核心功能」前面 —— 读者读到功能时已经有了错误预期 */
+  var feat = md.indexOf('## 四个核心功能')
+  if (feat >= 0 && at > feat) { console.log('     这一节排在「四个核心功能」后面了，太晚'); return false }
+  return /不含任何大模型|不内置任何模型/.test(md) && /没有任何模型接口/.test(md)
+})())
+
+ok('★ ★ ★ README 讲清三个角色各自有没有模型和联网', (function () {
+  var md = README_TXT
+  var need = {
+    '三角色分工': /三个角色/,
+    '写作台联网只抓新闻图片': /只用来抓新闻和图片/,
+    '只读不写': /只读不写/,
+    'Agent 的模型和联网是它自己的': /模型和联网都是它自己的/,
+    '改写是谁做的': /你的 AI 做的/
+  }
+  var miss = []
+  Object.keys(need).forEach(function (k) { if (!need[k].test(md)) miss.push(k) })
+  if (miss.length) console.log('     缺: ' + miss.join('  '))
+  return miss.length === 0
+})())
+
+ok('★ ★ ★ README 回答了「另一个 Agent 怎么用」', (function () {
+  var md = README_TXT
+  var need = {
+    '独立成节': /另一个 AI Agent 怎么用它/,
+    '说了这不是要安装的插件': /不是一个需要安装的插件/,
+    '给了多种给法': /方式 A/,
+    '说了 Agent 不需要什么': /它不需要/,
+    '指了手册': /AI操作手册\.md/,
+    '说了改规则要同时改两处': /改写作规则要同时改两个地方/
+  }
+  var miss = []
+  Object.keys(need).forEach(function (k) { if (!need[k].test(md)) miss.push(k) })
+  if (miss.length) console.log('     缺: ' + miss.join('  '))
+  return miss.length === 0
+})())
+
+/* ── 四 项目真的不接模型 ── */
+
+ok('★ ★ 服务端没有调任何模型接口（文档这么写，代码就得真是）', (function () {
+  /* README 说「不内置任何模型」—— 这句话要是假的，整篇教程就在骗人 */
+  var s = fs.readFileSync(ROOT + '/server.mjs', 'utf8').toLowerCase()
+  var api = ['api.openai.com', 'api.anthropic.com', 'openai', 'anthropic',
+             'deepseek', 'moonshot', 'dashscope', 'generativelanguage']
+  var hit = api.filter(function (k) { return s.indexOf(k) >= 0 })
+  if (hit.length) console.log('     ★ server.mjs 里出现了: ' + hit.join(' '))
+  return hit.length === 0
+})())
+
+ok('★ ★ 两份文档对「项目干什么活」的说法一致（不能各说一套）', (function () {
+  /* README 和手册都在开头讲分工。两处各写一份，迟早改一处漏一处 ——
+     同一个东西两处实现，必然只改一处。 */
+  var md = README_TXT
+  var items = ['抓热点', '抓原网页配图', '收任务', '列待核事实', '排版导出']
+  var missR = items.filter(function (k) { return md.indexOf(k) < 0 })
+  var missM = items.filter(function (k) { return MANUAL.indexOf(k) < 0 })
+  if (missR.length) console.log('     README 少: ' + missR.join(' '))
+  if (missM.length) console.log('     手册少: ' + missM.join(' '))
+  /* 旧说法「四件」已经不准了（漏了抓图），不许再出现 */
+  var stale = []
+  if (/四件机械活/.test(md)) stale.push('README 还写「四件机械活」')
+  if (/四件机械活/.test(MANUAL)) stale.push('手册还写「四件机械活」')
+  if (stale.length) console.log('     ' + stale.join('  '))
+  return missR.length === 0 && missM.length === 0 && stale.length === 0
 })())
 
 sec('9ca 暂时性死区')

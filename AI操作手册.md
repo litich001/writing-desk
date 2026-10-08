@@ -1,15 +1,62 @@
 # AI 侧操作手册
 
-给在这个目录里干活的 AI（我）看的。用户在界面点「提交」后，任务落到 `data/queue/`，在这里处理。
+## 先搞清楚三件事
+
+用户最容易误解这个项目的地方，一句话说清：
+
+**这个项目不含任何大模型，也不替你写稿。**
+
+- `server.mjs` 里没有任何模型接口（OpenAI / Anthropic / DeepSeek / 豆包 一个都没有），
+  你可以自己搜一遍确认
+- 项目只干机械活：抓热点、抓原网页配图、收任务、列待核事实、排版导出
+- **改写是你干的。** 你有你自己的模型、有你自己的联网能力，
+  这两样都不是这个项目给的
+
+所以分工是这样的：
+
+| 谁 | 在哪 | 干什么 |
+|---|---|---|
+| 用户 | 浏览器 | 看界面、点提交、判断内容好不好 |
+| 这个项目 | 用户本机 | 抓热点、收任务、列待核事实、排版导出 |
+| **你** | **你自己的环境** | **读任务、核实事实、写正文和标题、写回 `data/`** |
+
+用户在界面点「提交」后，任务落到 `data/queue/`，你在自己环境里处理它。
+
+**你有联网能力就核实事实去**，不要因为「本地工具」就以为查不了。
+`audit` 这个任务类型本来就是让你联网核实的。
+
+## 你是怎么拿到这份手册的
+
+三种方式都能用：
+
+1. 用户 clone 了整个仓库 → 你读仓库根目录这份 `AI操作手册.md`
+2. 用户只把这一份文件贴给你 → **够了**，你不需要那些代码
+3. 这份文件就在你的工作目录里
+
+**项目根目录 = 这份 `AI操作手册.md` 所在的那一层**（它和 `data/` 是同级的）。
+
+下面所有路径都相对项目根目录。
+**不要写死绝对路径** —— 用户不一定装在同一个盘，在别人机器上你那条路径根本不存在。
 
 ---
 
 ## 1. 开工前先看队列
 
-```powershell
-Get-ChildItem "E:\Codex\Opencode\写作台\data\queue" -Filter *.json
-Get-Content "E:\Codex\Opencode\写作台\data\queue\*.json" -Raw
+`data/queue/` 里每个 `.json` 是一个待办任务。下面两组命令，挑你能用的那一组：
+
+```bash
+# macOS / Linux / Git Bash
+ls data/queue/
+cat data/queue/*.json
 ```
+
+```powershell
+# Windows PowerShell
+Get-ChildItem data\queue -Filter *.json
+Get-Content data\queue\*.json -Raw
+```
+
+如果你只有文件读写工具、没有 shell，直接读 `data/queue/` 目录下的文件也一样。
 
 每个文件是一个任务：
 
@@ -65,7 +112,10 @@ Get-Content "E:\Codex\Opencode\写作台\data\queue\*.json" -Raw
 用户原话：「你最后给出标题都得几种，不要需要让人再操作第二步了。
 你就直接把文章给出来，把标题几种不同方向的建议都给出来，就是完整标题都给出来。」
 
-- 给 **6 个不同方向**的**完整标题**（12~24 字），不是「建议加一句关于…的标题」这种碎片
+- 给 **6 个不同方向**的**完整标题**（**12~22 字**，硬上限 22），不是「建议加一句关于…的标题」这种碎片
+  - ★ 超过 22 字的会被候选区**直接丢掉**，并提示丢了哪几条
+  - ★ 22 是有效性判断不是风格偏好：拇指停一条内容上约 0.3 秒，看得完 6~12 字，
+    句子没读完人已经划走。详见第 16 节「怎么砍到 22 字」
 - 按推荐顺序排，最能打的放第一个
 - 每个标题后用括号标一句「为什么是这个角度」
 - **不要用双引号把标题包起来**
@@ -130,9 +180,9 @@ Get-Content "E:\Codex\Opencode\写作台\data\queue\*.json" -Raw
 ### 交稿前必跑的自检（用户明确要求「有个程序去自己验收」）
 
 ```powershell
-node engine\style-check-me.mjs warm     # 按默认风格查
-node engine\body-check.cjs              # 结构：粘连/引号配对/加粗配对
-node engine\title-check.cjs              # 标题与正文是否配套
+node engine/style-check-me.mjs warm     # 按默认风格查
+node engine/body-check.cjs              # 结构：粘连/引号配对/加粗配对
+node engine/title-check.cjs              # 标题与正文是否配套
 ```
 
 成稿页右上角那块「自检」跑的是同一套判据，交稿前这里应该全是 ✓。
@@ -433,8 +483,8 @@ AI 最爱替读者预设立场。三层：
 交稿前必跑：
 
 ```powershell
-node engine\style-check-me.mjs warm     # 查当前稿子
-node engine\style-test.mjs              # 查判据本身灵不灵
+node engine/style-check-me.mjs warm     # 查当前稿子
+node engine/style-test.mjs              # 查判据本身灵不灵
 ```
 
 `style-test.mjs` 里每一组禁令都有一个「必须被抓出来」的负样本，
@@ -464,20 +514,33 @@ node engine\style-test.mjs              # 查判据本身灵不灵
 ## 14. 快速自检
 
 ```powershell
-node engine\style-check.mjs
-node engine\style-test.mjs
+node engine/style-check.mjs
+node engine/style-test.mjs
 ```
 
 有输出就改干净再交。
 
-## 15. 目录位置
+## 15. 项目在哪
 
-项目有两份，**内容完全一致**，打开哪个都行：
+**你不需要知道这个项目装在哪。** 你只需要两样东西：
 
-- `E:\Codex\Opencode\写作台`（当前）
-- `E:\文档\默认项目\写作台`（迁移前副本）
+| 你需要的 | 在哪 |
+|---|---|
+| 这份手册 | `AI操作手册.md` |
+| 任务和产出 | 同级的 `data/` 目录 |
 
-改完之后两边要同步，否则从旧路径打开会看到旧代码。
+判断项目根目录的土办法：**`AI操作手册.md` 和 `data/` 应该在同一层**。
+如果不是同级，说明你拿到的是一份被单独拷出来的手册，
+先问用户在项目里 `data/` 的位置。
+
+> 维护者备注（给改这个项目的人，不是给你看的）：
+> 维护这个项目的人本地有两份副本，改完要同步。
+> 那是他个人的习惯，不是这个项目的性质 —— 你手上只需要一份。
+
+改完产出后，界面上会自动刷新，不用告诉用户「我改完了」，
+用户自己会看到。如果产出没出现在界面上，先确认文件名和位置：
+`body.md` 就得叫 `body.md`、`titles.json` 就得叫 `titles.json`，
+放错名字工具读不到。
 
 ## 16. 标题必须和正文一起交
 
@@ -551,5 +614,5 @@ node engine\style-test.mjs
 跑一下确认：
 
 ```powershell
-node engine\title-check.cjs
+node engine/title-check.cjs
 ```
